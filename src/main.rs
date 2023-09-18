@@ -23,13 +23,6 @@ use std::error::Error;
 
 use csv::Writer;
 
-pub fn within(no1:i64,no2:i64,range:u64)->bool{
-    let mut mag:i64 = no2-no1;
-    if mag<0{
-        mag*=-1
-    }
-    mag<range as i64
-}
 
 pub mod limits{
     pub fn min(a:f64,b:f64)->f64{
@@ -120,9 +113,8 @@ pub struct Eviscerator{
 }
 
 impl Zone_3D{
-    fn add(&mut self)->[u64;6]{
+    fn add(&mut self)->[u64;7]{
         // println!("Adding to {}",self.zone);
-        self.capacity-=1;
         let mut origin_x:u64 = 0;
         let mut origin_y:u64 = 0;
         let mut origin_z:u64 = 0;
@@ -139,7 +131,11 @@ impl Zone_3D{
             range_y = first_space.range_y;
             range_z = first_space.range_z;
         }        
-        [origin_x,origin_y,origin_z,range_x,range_y,range_z]
+        let condition:bool = origin_x != 0 && origin_y != 0 && origin_z != 0;
+        if condition{
+            self.capacity-=1;
+        }
+        [condition as u64,origin_x,origin_y,origin_z,range_x,range_y,range_z]
     }
     fn subtract(&mut self,x:u64,y:u64,z:u64){
         self.capacity+=1;
@@ -179,53 +175,40 @@ impl Zone_3D{
         }
         vec
     }
-    fn eviscerate(&mut self,eviscerators:&mut Vec<Eviscerator>,mut vector: Vec<host>,time:usize)->Vec<host>{
+    fn eviscerate(&mut self,eviscerators:&mut Vec<Eviscerator>, vector:&mut Vec<host>,time:usize){
         //Filter out eviscerators that are for the zone in particular
         let mut filtered_vector: Vec<&mut Eviscerator> = eviscerators.iter_mut().filter(|ev| ev.zone == self.zone).collect();
-        // NUMBER of eviscerators for each separate session
+        // Define the step size for comparison
         let step_size = filtered_vector.len();
-        let mut mishap:Vec<[i64;3]> = Vec::new();
+
         // Iterate over the smaller vector and compare with elements in the larger vector at regular intervals
         for (i, eviscerator) in filtered_vector.iter_mut().enumerate() {
             let start_index = i; // Start index in the larger vector for this eviscerator
-            // println!("START INDEX: {}", &start_index);
-            let mut timer:f64 = (i+1) as f64;
-            timer /= step_size as f64;
             for (j, host) in vector.iter_mut().skip(start_index).step_by(step_size).enumerate() {
                 // Compare and update the elements in the larger vector
                 // if eviscerator.values_are_greater(larger_value) {
                 //     *larger_value = eviscerator.values.clone(); // Assuming your struct has a clone method
-                if host.zone == eviscerator.zone{
-                    host.time+=timer*ages[host.zone]; //This makes sure that upon first evisceration, hosts are determined to have completed their stay in the zone and are transported out!                    
+                if host.infected && host.zone == eviscerator.zone{
+                    eviscerator.infected = true;
+                    // println!("EVISCERATOR HAS BEEN INFECTED AT TIME {} of this chicken stock entering zone!",host.time);
+                    eviscerator.count_since_infected = 0;
+                    println!("{} {} {} {} {} {}",host.x,host.y,host.z,12,time,host.zone);
+                }else if eviscerator.infected && host.zone == eviscerator.zone{
+                    // println!("Confirming that an eviscerator is infected in zone {}",eviscerator.zone);
+                    eviscerator.count_since_infected += 1;
+                    host.infected = host.transfer();
                     if host.infected{
-                        eviscerator.infected = true; 
-                        // println!("EVISCERATOR HAS BEEN INFECTED AT TIME {} of this chicken stock entering zone!",host.time);
-                        eviscerator.count_since_infected = 0;
-                        println!("{} {} {} {} {} {}",host.x,host.y,host.z,12,time,host.zone);
-                        if roll(MISHAP){
-                            println!("MISHAP OCCURRED");
-                            mishap.push([host.origin_x as i64,host.origin_y as i64,host.origin_z as i64]);
-                        }
-                    }else if eviscerator.infected && !host.infected{
-                        // println!("Confirming that an eviscerator is infected in zone {}",eviscerator.zone);
-                        eviscerator.count_since_infected += 1;
-                        host.infected = host.transfer();
-                        if host.infected{
-                            println!("{} {} {} {} {} {}",host.x,host.y,host.z,11,time,host.zone);
-                            // panic!("Evisceration has infected a host!!!");
-                        }
+                        println!("{} {} {} {} {} {}",host.x,host.y,host.z,11,time,host.zone);
+                        // panic!("Evisceration has infected a host!!!");
                     }
                 }
                 //Decay of infection
-                if eviscerator.infected && eviscerator.count_since_infected>=EVISCERATE_DECAY{
+                if eviscerator.count_since_infected>=EVISCERATE_DECAY{
                     eviscerator.infected = false;
                 }
             }
         }
-        for event in mishap{
-            vector = host::infect_area(vector, event[0],event[1],event[2],MISHAP_RADIUS,MISHAP_RADIUS,MISHAP_RADIUS,self.zone,time);
-        }
-        vector
+        
     }
 }
 
@@ -282,8 +265,7 @@ const EVISCERATE:bool = true;
 const EVISCERATE_ZONES:[usize;1] = [2]; //Zone in which evisceration takes place
 const EVISCERATE_DECAY:u8 = 5;
 const NO_OF_EVISCERATORS:[usize;1] = [6];
-const MISHAP:f64 = 0.1; //Rate of mishap 
-const MISHAP_RADIUS:u64 = 15;
+
 //Transfer parameters
 const ages:[f64;3] = [8.0,1.0,1.0]; //Time hosts are expected spend in each region minimally
 //Collection
@@ -336,15 +318,6 @@ impl host{
         {if !first_host.infected{first_host.infected=true;}}
         vector
     }
-    fn infect_area(mut vector:Vec<host>,loc_x:i64,loc_y:i64,loc_z:i64,range_x:u64,range_y:u64,range_z:u64,zone:usize,time:usize)->Vec<host>{
-        let mut filtered_vector:Vec<&mut host> = vector.iter_mut().filter(|host_| host_.zone == zone && within(host_.origin_x as i64,loc_x,range_x) && within(host_.origin_y as i64,loc_y,range_y) && within(host_.origin_z as i64,loc_z,range_z)).collect();
-        // {if !first_host.infected{first_host.infected=true;}}
-        for host in filtered_vector.iter_mut(){
-            host.infected = host.transfer();
-            println!("{} {} {} {} {} {}", host.x,host.y,host.z,13,time,host.zone);
-        }
-        vector
-    }    
     fn infect_multiple(mut vector:Vec<host>,loc_x:u64,loc_y:u64,loc_z:u64,n:usize,zone:usize)->Vec<host>{ //homogeneous application ->Periodically apply across space provided,->Once per location
         let mut filtered_vector: Vec<&mut host> = vector.iter_mut().filter(|host| host.zone == zone).collect();
 
@@ -379,10 +352,14 @@ impl host{
                         x.prob1 = LISTOFPROBABILITIES[x.zone];
                         // println!("Going to deduct capacity @  zone {} with a capacity of {}", zone,zone_toedit.clone().zone);
                         // println!("Apparently think that zone {} has {} space left",zone,space[zone].capacity);
-                        [x.origin_x,x.origin_y,x.origin_z,x.range_x,x.range_y,x.range_z] = space[zone].add();
-                        if x.zone == 2{
-                            println!("Capacity of zone 2 is {}",space[zone].capacity);
-                            println!("Adding to zone 2 at {},{},{}",x.origin_x,x.origin_y,x.origin_z);
+                        let vars:[u64;7] =  space[zone].add();
+                        if vars[0] != 0{
+                            x.origin_x = vars[1];
+                            x.origin_y = vars[2];
+                            x.origin_z = vars[3];
+                            x.range_x = vars[4];
+                            x.range_y = vars[5];
+                            x.range_z = vars[6];
                         }
                     }
                 })
@@ -396,11 +373,11 @@ impl host{
                     let mut rng = thread_rng();
                     let roll = Uniform::new(0.0, 1.0);
                     let rollnumber: f64 = rng.sample(roll);
-                    let [x,y,z,range_x,range_y,range_z] = space[0].add(); 
-                    if rollnumber<PROBABILITY_OF_INFECTION{
+                    let [condition,x,y,z,range_x,range_y,range_z] = space[0].add(); 
+                    if rollnumber<PROBABILITY_OF_INFECTION && condition != 0{
                         vector.push(host::new_inf(0,0.2,x as f64,y as f64,z as f64,RESTRICTION,range_x,range_y,range_z));
                     }
-                    else{
+                    else if condition != 0{
                         vector.push(host::new(0,0.2,x as f64,y as f64,z as f64,RESTRICTION,range_x,range_y,range_z));
                     }
             }
@@ -539,9 +516,10 @@ impl host{
             //deposits by hosts do not move obviously, but they DO age, which affects collection
             self.age += 1.0/HOUR_STEP;
             self.time += 1.0/HOUR_STEP;
-            if FAECAL_DROP && self.motile == 2{
+            if FAECAL_DROP && self.motile == 2 && self.z>0.0{
                 // println!("Examining poop for shuttle drop!");
                 self.z -= (poisson(PROBABILITY_OF_FAECAL_DROP/HOUR_STEP)*(STEP[self.zone][2] as u64)) as f64;
+                self.z = limits::max(self.z,0.0);
             }
             self
         }
@@ -813,6 +791,7 @@ fn main(){
     let zone_to_infect:usize = 0;
     chickens = host::infect_multiple(chickens,GRIDSIZE[zone_to_infect][0] as u64/2,GRIDSIZE[zone_to_infect][1] as u64/2,GRIDSIZE[zone_to_infect][2] as u64/2,2,0);
 
+
     //Count number of infected
     // let it: u64 = chickens.clone().into_iter().filter(|x| x.infected).collect()::<Vec<_>>.len();
     // let mut vecc_into: Vec<host> = chickens.clone().into_iter().filter(|x| x.infected).collect::<Vec<_>>(); //With this re are RETAINING the hosts and deposits within the original vector
@@ -848,6 +827,12 @@ fn main(){
                 }
             }
         }
+        if EVISCERATE{
+            for zone in EVISCERATE_ZONES{
+                // println!("Evisceration occurring at zone {}",zone);
+                zones[zone].eviscerate(&mut eviscerators,&mut chickens,time.clone());
+            }
+        }
         let mut collection_counter_fromFinalZone:&mut Zone_3D = &mut zones[GRIDSIZE.len()-1];
         [chickens,collect] = host::collect__(chickens,&mut collection_counter_fromFinalZone);
 
@@ -859,14 +844,6 @@ fn main(){
                 chickens = host::land(chickens);
             }
         } //Say chickens move/don't move every 15min - 4 times per hour
-        //Check location of hosts in zone 2 
-        // println!("Number of poop is {}",chickens.clone().into_iter().filter(|x| x.motile == 0 && x.zone == 2).collect::<Vec<_>>().len() as u64);
-        if EVISCERATE{
-            for zone in EVISCERATE_ZONES{
-                // println!("Evisceration occurring at zone {}",zone);
-                chickens = zones[zone].eviscerate(&mut eviscerators,chickens,time.clone());
-            }
-        }        
         chickens = host::deposit_all(chickens);
         //Collect the hosts and deposits as according
         // println!("Number of infected eggs in soon to be collection is {}",collect.clone().into_iter().filter(|x| x.motile == 1 && x.infected).collect::<Vec<_>>().len() as f64);
@@ -971,21 +948,6 @@ fn main(){
     writeln!(file, "\n## Flight module").expect("Failed to write to file");
     writeln!(file, "- FLY: {} (Flight module enabled/disabled)", FLY).expect("Failed to write to file");    
     writeln!(file, "- FLY_FREQ: {} (Frequency of flight - which HOUR STEP do the hosts land, if at all)", FLY_FREQ).expect("Failed to write to file");    
-
-    // Feed parameters
-    writeln!(file, "\n## Feed Parameters").expect("Failed to write to file");
-    writeln!(file, "- FEED: {} (Do the hosts get fed?)", FEED).expect("Failed to write to file");
-    writeln!(file, "- FEED_INFECTION_RATE: {} (Probability of feed being infected)", FEED_INFECTION_RATE).expect("Failed to write to file");
-    writeln!(file, "- FEED_ZONES: {:?} (Zones that have feed provided to them)", FEED_ZONES).expect("Failed to write to file");
-    writeln!(file, "- FEED_TIMES: {:?} (When hosts get fed in 24h format)", FEED_TIMES).expect("Failed to write to file");
-
-    // Evisceration parameters
-    writeln!(file, "\n## Evisceration Parameters").expect("Failed to write to file");
-    writeln!(file, "- EVISCERATE: {} (Is evisceration enabled?)", EVISCERATE).expect("Failed to write to file");
-    writeln!(file, "- EVISCERATE_ZONES: {:?} (Zones in which evisceration takes place)", EVISCERATE_ZONES).expect("Failed to write to file");
-    writeln!(file, "- EVISCERATE_DECAY: {} (Evisceration decay rate)", EVISCERATE_DECAY).expect("Failed to write to file");
-    writeln!(file, "- NO_OF_EVISCERATORS: {:?} (Number of eviscerators in each zone)", NO_OF_EVISCERATORS).expect("Failed to write to file");
-    writeln!(file, "- MISHAP: {} (Rate of mishap)", MISHAP).expect("Failed to write to file");
 
     // Transfer config
     writeln!(file, "\n## Transfer Configuration").expect("Failed to write to file");
