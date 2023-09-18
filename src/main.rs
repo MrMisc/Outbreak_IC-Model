@@ -243,6 +243,8 @@ const MAX_MOVE_Z:f64 = 1.0;
 const MEAN_MOVE_Z:f64 = 2.0;
 const STD_MOVE_Z:f64 = 4.0;
 const NO_OF_HOSTS_PER_SEGMENT:[u8;3] = [10,3,1];
+//Space --- Segment ID
+const TRANSFERS_ONLY_WITHIN:bool = false; //Boolean that informs simulation to only allow transmissions to occur WITHIN segments, not between adjacent segments
 //Fly option
 const FLY:bool = false;
 const FLY_FREQ:u8 = 3; //At which Hour step do the  
@@ -277,7 +279,7 @@ const FAECAL_CLEANUP_FREQUENCY:usize = 2; //How many times a day do you want fae
 const TIME_OF_COLLECTION :f64 = 1.0; //Time that the host has spent in the last zone from which you collect ONLY. NOT THE TOTAL TIME SPENT IN SIMULATION
 //Resolution
 const STEP:[[usize;3];3] = [[4,4,2],[5,5,2],[2,2,1]];  //Unit distance of segments ->Could be used to make homogeneous zoning (Might not be very flexible a modelling decision)
-const HOUR_STEP: f64 = 2.0; //Number of times hosts move per hour
+const HOUR_STEP: f64 = 4.0; //Number of times hosts move per hour
 const LENGTH: usize = 24; //How long do you want the simulation to be?
 //Influx? Do you want new chickens being fed into the scenario everytime the first zone exports some to the succeeding zones?
 const INFLUX:bool = true;
@@ -360,6 +362,18 @@ impl host{
                             x.range_x = vars[4];
                             x.range_y = vars[5];
                             x.range_z = vars[6];
+
+                            //Maybe try moving the chickens randomly within each new section otherwise they all will infect each other at origin
+                            let mean_x:f64 = ((x.range_x as f64)/2.0) as f64;
+                            let std_x:f64 = ((x.range_x as f64)/SPORADICITY) as f64;
+                            let max_x:f64 = x.range_x as f64;
+                            let mean_y:f64 = ((x.range_y as f64)/2.0) as f64;
+                            let std_y:f64 = ((x.range_y as f64)/SPORADICITY) as f64;
+                            let max_y:f64 = x.range_y as f64;              
+                            //Baseline starting point in new region
+                            x.x = normal(mean_x,std_x,(x.origin_x+x.range_x) as f64);
+                            x.y = normal(mean_y,std_x,(x.origin_y+x.range_y) as f64);
+                            x.z = x.origin_z as f64;
                         }
                     }
                 })
@@ -591,7 +605,7 @@ impl host{
             .into_par_iter()
             .filter_map(|mut x| {
                 for inf in &cloneof {
-                    if host::dist(inf, &x) && inf.zone == x.zone {
+                    if host::dist(inf, &x) && inf.zone == x.zone && (!TRANSFERS_ONLY_WITHIN || TRANSFERS_ONLY_WITHIN && x.origin_x == inf.origin_x && x.origin_y == inf.origin_y && x.origin_z == inf.origin_z){
                         let before = x.infected.clone();
                         x.infected = x.transfer();
                         if !before && x.infected {
@@ -943,11 +957,17 @@ fn main(){
     writeln!(file, "- STD_MOVE_Z: {} (Standard deviation of move value for vertical motion)", STD_MOVE_Z).expect("Failed to write to file");
     writeln!(file, "- FAECAL DROP: {} (Does faeces potentially fall between segments downwards?)", FAECAL_DROP).expect("Failed to write to file");
     writeln!(file, "- PROBABILITY OF FAECAL DROP: {} (If yes, what is the probability? -> Poisson hourly rate)", PROBABILITY_OF_FAECAL_DROP).expect("Failed to write to file");
-
+    writeln!(file, "- TRANSMISSION BETWEEN ZONES enabled: {} (Can diseases transfer between segments/cages within each zone?)", !TRANSFERS_ONLY_WITHIN).expect("Failed to write to file");
     // Fly configuration
     writeln!(file, "\n## Flight module").expect("Failed to write to file");
     writeln!(file, "- FLY: {} (Flight module enabled/disabled)", FLY).expect("Failed to write to file");    
     writeln!(file, "- FLY_FREQ: {} (Frequency of flight - which HOUR STEP do the hosts land, if at all)", FLY_FREQ).expect("Failed to write to file");    
+
+    // Eviscerator configuration
+    writeln!(file, "\n## Eviscerator Configuration enabled:{}",EVISCERATE).expect("Failed to write to file");
+    writeln!(file, "- Evisceration Zones: {:?}", EVISCERATE_ZONES).expect("Failed to write to file");   
+    writeln!(file, "- NUMBER OF EVISCERATORS: {:?}", NO_OF_EVISCERATORS).expect("Failed to write to file");   
+    writeln!(file, "- EVISCERATOR DECAY: {} (Number of hosts an eviscerator has to go through before the infection is gone)", EVISCERATE_DECAY).expect("Failed to write to file");        
 
     // Transfer config
     writeln!(file, "\n## Transfer Configuration").expect("Failed to write to file");
