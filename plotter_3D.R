@@ -394,15 +394,26 @@ data <- data %>%
 
 
 fig <- ggplot(data, aes(x = time, fill = as.factor(interaction))) +
-  geom_bar(position = "dodge") + facet_grid(.~zone)+
+  geom_bar(position = "dodge") + facet_wrap(.~zone)+
   labs(title = "Bar Plot of Interaction Counts Over Time", x = "Time", y = "Count")
 
 fig <- ggplotly(fig, dynamicTicks = TRUE)
 
 htmlwidgets::saveWidget(fig, "Histogram.html", selfcontained = TRUE)
 
+  S <- data %>%
+    group_by(interaction,zone,time) %>%
+    summarise(count = n()) %>%
+    ungroup()
 
 
+fig <- ggplot(S, aes(y = count,x = time, color = as.factor(interaction))) +
+  geom_line() + facet_wrap(.~zone) +
+  labs(title = "Interaction Counts Over Time", x = "Time", y = "Count")
+
+fig <- ggplotly(fig, dynamicTicks = TRUE)
+
+htmlwidgets::saveWidget(fig, "Line.html", selfcontained = TRUE)
 
 
 
