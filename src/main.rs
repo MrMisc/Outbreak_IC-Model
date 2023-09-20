@@ -183,41 +183,76 @@ impl Zone_3D{
         }
         vec
     }
-    fn eviscerate(&mut self,eviscerators:&mut Vec<Eviscerator>, vector:&mut Vec<host>,time:usize){
-        //Filter out eviscerators that are for the zone in particular
-        let mut filtered_vector: Vec<&mut Eviscerator> = eviscerators.iter_mut().filter(|ev| ev.zone == self.zone).collect();
-        // Define the step size for comparison
-        let step_size = filtered_vector.len();
+    // fn eviscerate(&mut self,eviscerators:&mut Vec<Eviscerator>, vector:&mut Vec<host>,time:usize){
+    //     //Filter out eviscerators that are for the zone in particular
+    //     let mut evs: Vec<&mut Eviscerator> = eviscerators.iter_mut().filter(|ev| ev.zone == self.zone).collect();
+    //     // Define the step size for comparison
+    //     let step_size = evs.len();
 
-        // Iterate over the smaller vector and compare with elements in the larger vector at regular intervals
-        for (i, eviscerator) in filtered_vector.iter_mut().enumerate() {
-            let start_index = i; // Start index in the larger vector for this eviscerator
-            for (j, host) in vector.iter_mut().skip(start_index).step_by(step_size).enumerate() {
-                // Compare and update the elements in the larger vector
-                // if eviscerator.values_are_greater(larger_value) {
-                //     *larger_value = eviscerator.values.clone(); // Assuming your struct has a clone method
-                if host.infected && host.zone == eviscerator.zone{
-                    eviscerator.infected = true;
-                    // println!("EVISCERATOR HAS BEEN INFECTED AT TIME {} of this chicken stock entering zone!",host.time);
-                    eviscerator.count_since_infected = 0;
-                    println!("{} {} {} {} {} {}",host.x,host.y,host.z,12,time,host.zone);
-                }else if eviscerator.infected && host.zone == eviscerator.zone{
-                    // println!("Confirming that an eviscerator is infected in zone {}",eviscerator.zone);
-                    host.infected = host.transfer(limits::max(0.0,LISTOFPROBABILITIES[self.zone]-(eviscerator.count_since_infected as f64)*EVISCERATOR_TO_HOST_PROBABILITY_DECAY));
-                    eviscerator.count_since_infected += 1;
-                    if host.infected{
-                        println!("{} {} {} {} {} {}",host.x,host.y,host.z,11,time,host.zone);
-                        // panic!("Evisceration has infected a host!!!");
-                    }
-                }
-                //Decay of infection
-                if eviscerator.count_since_infected>=EVISCERATE_DECAY{
-                    eviscerator.infected = false;
+    //     // Iterate over the smaller vector and compare with elements in the larger vector at regular intervals
+    //     for (i, eviscerator) in evs.iter_mut().enumerate() {
+    //         let start_index = i; // Start index in the larger vector for this eviscerator
+    //         for (j, host) in vector.iter_mut().skip(start_index).step_by(step_size).enumerate() {
+    //             // Compare and update the elements in the larger vector
+    //             // if eviscerator.values_are_greater(larger_value) {
+    //             //     *larger_value = eviscerator.values.clone(); // Assuming your struct has a clone method
+    //             if host.infected && host.zone == eviscerator.zone{
+    //                 eviscerator.infected = true;
+    //                 // println!("EVISCERATOR HAS BEEN INFECTED AT TIME {} of this chicken stock entering zone!",host.time);
+    //                 eviscerator.count_since_infected = 0;
+    //                 println!("{} {} {} {} {} {}",host.x,host.y,host.z,12,time,host.zone);
+    //             }else if eviscerator.infected && host.zone == eviscerator.zone{
+    //                 // println!("Confirming that an eviscerator is infected in zone {}",eviscerator.zone);
+    //                 host.infected = host.transfer(limits::max(0.0,1.0-(eviscerator.count_since_infected as f64)*EVISCERATOR_TO_HOST_PROBABILITY_DECAY));
+    //                 eviscerator.count_since_infected += 1;
+    //                 if host.infected{
+    //                     println!("{} {} {} {} {} {}",host.x,host.y,host.z,11,time,host.zone);
+    //                     // panic!("Evisceration has infected a host!!!");
+    //                 }
+    //             }
+    //             //Decay of infection
+    //             if eviscerator.count_since_infected>=EVISCERATE_DECAY{
+    //                 eviscerator.infected = false;
+    //             }
+    //         }
+    //     }
+        
+    // }
+    fn eviscerate(&mut self,eviscerators:&mut Vec<Eviscerator>, vector:&mut Vec<host>,time:usize){
+        //DO THE MISHAP EXPLOSION BEFOREHAND
+        //....
+        //Filter out eviscerators that are for the zone in particular
+        let mut evs: Vec<&mut Eviscerator> = eviscerators.iter_mut().filter(|ev| ev.zone == self.zone).collect();
+        // Define the step size for comparison
+        let step_size = evs.len();
+        //Organic iteration
+        for (j, host) in vector.iter_mut().enumerate() {
+            // Compare and update the elements in the larger vector
+            // if eviscerator.values_are_greater(larger_value) {
+            //     *larger_value = eviscerator.values.clone(); // Assuming your struct has a clone method
+            let mut eviscerator:&mut Eviscerator = evs[j%step_size];
+            if host.infected && host.zone == eviscerator.zone{
+                eviscerator.infected = true;
+                // println!("EVISCERATOR HAS BEEN INFECTED AT TIME {} of this chicken stock entering zone!",host.time);
+                eviscerator.count_since_infected = 0;
+                println!("{} {} {} {} {} {}",host.x,host.y,host.z,12,time,host.zone);
+            }else if eviscerator.infected && host.zone == eviscerator.zone{
+                // println!("Confirming that an eviscerator is infected in zone {}",eviscerator.zone);
+                host.infected = host.transfer(limits::max(0.0,1.0-(eviscerator.count_since_infected as f64)*EVISCERATOR_TO_HOST_PROBABILITY_DECAY));
+                eviscerator.count_since_infected += 1;
+                if host.infected{
+                    println!("{} {} {} {} {} {}",host.x,host.y,host.z,11,time,host.zone);
+                    // panic!("Evisceration has infected a host!!!");
                 }
             }
+            //Decay of infection
+            if eviscerator.count_since_infected>=EVISCERATE_DECAY{
+                eviscerator.infected = false;
+            }
         }
+
         
-    }
+    }    
 }
 
 #[derive(Clone)]
@@ -242,8 +277,8 @@ pub struct host{
 }
 //Note that if you want to adjust the number of zones, you have to, in addition to adjusting the individual values to your liking per zone, also need to change the slice types below!
 //Space
-const LISTOFPROBABILITIES:[f64;3] = [0.8,0.5,0.8]; //Probability of transfer of samonella per zone - starting from zone 0 onwards
-const GRIDSIZE:[[f64;3];3] = [[100.0,50.0,8.0],[100.0,100.0,20.0],[4500.0,1.0,1.0]];
+const LISTOFPROBABILITIES:[f64;3] = [0.3,0.3,0.8]; //Probability of transfer of samonella per zone - starting from zone 0 onwards
+const GRIDSIZE:[[f64;3];3] = [[100.0,50.0,8.0],[100.0,100.0,20.0],[40000.0,3.0,3.0]];
 const MAX_MOVE:f64 = 3.0;
 const MEAN_MOVE:f64 = 2.0;
 const STD_MOVE:f64 = 1.0; // separate movements for Z config
@@ -257,7 +292,7 @@ const TRANSFERS_ONLY_WITHIN:[bool;3] = [false,false,true]; //Boolean that inform
 const FLY:bool = false;
 const FLY_FREQ:u8 = 3; //At which Hour step do the  
 //Disease 
-const TRANSFER_DISTANCE: f64 = 2.7;//maximum distance over which hosts can trasmit diseases to one another
+const TRANSFER_DISTANCE: f64 = 1.3;//maximum distance over which hosts can trasmit diseases to one another
 //Host parameters
 const PROBABILITY_OF_INFECTION:f64 = 0.12; //probability of imported host being infected
 const MEAN_AGE:f64 = 5.0*24.0; //Mean age of hosts imported (IN HOURS)
@@ -278,7 +313,11 @@ const EVISCERATE:bool = true;
 const EVISCERATE_ZONES:[usize;1] = [2]; //Zone in which evisceration takes place
 const EVISCERATE_DECAY:u8 = 5;
 const NO_OF_EVISCERATORS:[usize;1] = [6];
-const EVISCERATOR_TO_HOST_PROBABILITY_DECAY:f64 = 0.2;   //Starting from listofprobabilities value for eviscerator zone
+const EVISCERATOR_TO_HOST_PROBABILITY_DECAY:f64 = 0.25;   //Multiplicative decrease of  probability - starting from LISTOFPROBABILITIES value 100%->75% (if 0.25 is value)->50% ->25%->0%
+//Evisceration -------------> Mishap/Explosion parameters
+const MISHAP:bool = true;
+const MISHAP_PROBABILITY:f64 = 0.1;
+const MISHAP_RADIUS:f64 = 5.0;
 //Transfer parameters
 const ages:[f64;3] = [8.0,1.0,1.0]; //Time hosts are expected spend in each region minimally
 //Collection
@@ -289,7 +328,7 @@ const FAECAL_CLEANUP_FREQUENCY:usize = 2; //How many times a day do you want fae
 //or do we do time collection instead?
 const TIME_OF_COLLECTION :f64 = 1.0; //Time that the host has spent in the last zone from which you collect ONLY. NOT THE TOTAL TIME SPENT IN SIMULATION
 //Resolution
-const STEP:[[usize;3];3] = [[4,4,2],[5,5,2],[1,1,1]];  //Unit distance of segments ->Could be used to make homogeneous zoning (Might not be very flexible a modelling decision)
+const STEP:[[usize;3];3] = [[4,4,2],[5,5,2],[3,3,3]];  //Unit distance of segments ->Could be used to make homogeneous zoning (Might not be very flexible a modelling decision)
 const HOUR_STEP: f64 = 4.0; //Number of times hosts move per hour
 const LENGTH: usize = 24; //How long do you want the simulation to be?
 //Influx? Do you want new chickens being fed into the scenario everytime the first zone exports some to the succeeding zones?
