@@ -171,6 +171,7 @@ for (separate_zone in zone_unique2){
           interaction == 10~ "Feed infection",
           interaction == 11~ "Eviscerator -> Host",
           interaction == 12~ "Host -> Eviscerator",
+          interaction == 13~ "Eviscerator Mishap/Explosion",
           TRUE ~ as.character(interaction)
       ),
       shapes = case_when(
@@ -388,6 +389,7 @@ data <- data %>%
           interaction == 10~ "Feed infection",
           interaction == 11~ "Eviscerator -> Host",
           interaction == 12~ "Host -> Eviscerator",
+          interaction == 13~ "Eviscerator Mishap/Explosion",
         TRUE ~ as.character(interaction)
     ))
 
