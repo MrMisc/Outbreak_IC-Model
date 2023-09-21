@@ -226,7 +226,7 @@ impl Zone_3D{
             vector.sort_by(|a,b| a.origin_x.cmp(&b.origin_x));
             let mut ind:Vec<usize> = Vec::new();
             vector.iter_mut().enumerate().for_each(|(idx,mut host)| {
-                if EVISCERATE_ZONES.contains(&host.zone) && roll(MISHAP_PROBABILITY){
+                if EVISCERATE_ZONES.contains(&host.zone) && host.infected && roll(MISHAP_PROBABILITY){
                     // panic!("Kaboom!");
                     ind.push(idx);
                 }
@@ -333,7 +333,7 @@ const EVISCERATE_DECAY:u8 = 5;
 const NO_OF_EVISCERATORS:[usize;1] = [6];
 const EVISCERATOR_TO_HOST_PROBABILITY_DECAY:f64 = 0.25;   //Multiplicative decrease of  probability - starting from LISTOFPROBABILITIES value 100%->75% (if 0.25 is value)->50% ->25%->0%
 //Evisceration -------------> Mishap/Explosion parameters
-const MISHAP:bool = false;
+const MISHAP:bool = true;
 const MISHAP_PROBABILITY:f64 = 0.01;
 const MISHAP_RADIUS:f64 = 9.0; //Must be larger than the range_x of the eviscerate boxes for there to be any change in operation
 //Transfer parameters
