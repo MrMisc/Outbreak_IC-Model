@@ -1,4 +1,4 @@
-use std::thread;
+// use std::thread;
 use rand::distributions::Uniform;
 use rand::distributions::{Distribution, Standard};
 use rand::{thread_rng, Rng};
@@ -7,19 +7,19 @@ extern crate rayon;
 use rayon::prelude::*;
 
 extern crate serde;
-extern crate serde_json;
-use serde::Deserializer;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+// extern crate serde_json;
+// use serde::Deserializer;
+// use serde::{Deserialize, Serialize};
+// use serde_json::json;
 
 // use std::error::Error;
 use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::Read;
+// use std::io::Read;
 use std::io::Write;
-use std::time::{Duration, Instant};
+// use std::time::{Duration, Instant};
 use std::{fs, io, process};
-use std::error::Error;
+// use std::error::Error;
 
 use csv::Writer;
 
@@ -220,7 +220,27 @@ impl Zone_3D{
     // }
     fn eviscerate(&mut self,eviscerators:&mut Vec<Eviscerator>, vector:&mut Vec<host>,time:usize){
         //DO THE MISHAP EXPLOSION BEFOREHAND
-        //....
+        // Decision:If the mishap explosion does not even exceed the spacing between the evisceration belt in side the eviscerationi zone, we do not need to bother doing mishap explosions
+        if MISHAP && MISHAP_RADIUS as u64>self.segments[0].range_x{
+            let index_spacing:usize = (MISHAP_RADIUS as u64/ self.segments[0].range_x) as usize;
+            vector.sort_by(|a,b| a.origin_x.cmp(&b.origin_x));
+            let mut ind:Vec<usize> = Vec::new();
+            vector.iter_mut().enumerate().for_each(|(idx,mut host)| {
+                if EVISCERATE_ZONES.contains(&host.zone) && roll(MISHAP_PROBABILITY){
+                    // panic!("Kaboom!");
+                    ind.push(idx);
+                }
+            });
+            for &idx in &ind{
+                let start_index = if idx >= index_spacing {idx-index_spacing}else{0};
+                let end_index = std::cmp::min(idx+index_spacing+1,vector.len());
+                for host in &mut vector[start_index..end_index]{
+                    host.infected = true;
+                    println!("{} {} {} {} {} {}",host.x,host.y,host.z,13,time,host.zone);
+                }
+            }            
+        }
+
         //Filter out eviscerators that are for the zone in particular
         let mut evs: Vec<&mut Eviscerator> = eviscerators.iter_mut().filter(|ev| ev.zone == self.zone).collect();
         // Define the step size for comparison
@@ -250,8 +270,6 @@ impl Zone_3D{
                 eviscerator.infected = false;
             }
         }
-
-        
     }    
 }
 
@@ -277,9 +295,9 @@ pub struct host{
 }
 //Note that if you want to adjust the number of zones, you have to, in addition to adjusting the individual values to your liking per zone, also need to change the slice types below!
 //Space
-const LISTOFPROBABILITIES:[f64;3] = [0.3,0.3,0.8]; //Probability of transfer of samonella per zone - starting from zone 0 onwards
+const LISTOFPROBABILITIES:[f64;3] = [0.1,0.1,0.8]; //Probability of transfer of samonella per zone - starting from zone 0 onwards
 const GRIDSIZE:[[f64;3];3] = [[100.0,50.0,8.0],[100.0,100.0,20.0],[40000.0,3.0,3.0]];
-const MAX_MOVE:f64 = 3.0;
+const MAX_MOVE:f64 = 2.5;
 const MEAN_MOVE:f64 = 2.0;
 const STD_MOVE:f64 = 1.0; // separate movements for Z config
 const MAX_MOVE_Z:f64 = 1.0;
@@ -315,9 +333,9 @@ const EVISCERATE_DECAY:u8 = 5;
 const NO_OF_EVISCERATORS:[usize;1] = [6];
 const EVISCERATOR_TO_HOST_PROBABILITY_DECAY:f64 = 0.25;   //Multiplicative decrease of  probability - starting from LISTOFPROBABILITIES value 100%->75% (if 0.25 is value)->50% ->25%->0%
 //Evisceration -------------> Mishap/Explosion parameters
-const MISHAP:bool = true;
-const MISHAP_PROBABILITY:f64 = 0.1;
-const MISHAP_RADIUS:f64 = 5.0;
+const MISHAP:bool = false;
+const MISHAP_PROBABILITY:f64 = 0.01;
+const MISHAP_RADIUS:f64 = 9.0; //Must be larger than the range_x of the eviscerate boxes for there to be any change in operation
 //Transfer parameters
 const ages:[f64;3] = [8.0,1.0,1.0]; //Time hosts are expected spend in each region minimally
 //Collection
@@ -378,7 +396,7 @@ impl host{
             let dy = host.origin_y as i64 - loc_y as i64;
             let dz = host.origin_z as i64 - loc_z as i64;
             (dx*dx + dy*dy+dz*dz) as u64
-        }) ;
+        });
         for host in filtered_vector.iter_mut().take(n){
             host.infected = true;
             println!("{} {} {} {} {} {}",host.x,host.y,host.z,0,0.0,host.zone);
@@ -562,10 +580,10 @@ impl host{
             if self.restrict{
                 // println!("We are in the restrict clause! {}", self.motile);
                 // println!("Current shuffling parameter is {}", self.motile);
-                new_x = limits::min(limits::max(self.origin_x as f64,self.x+mult[0]*normal(MEAN_MOVE,STD_MOVE,MAX_MOVE)),(self.origin_x as f64+self.range_x as f64));
-                new_y = limits::min(limits::max(self.origin_y as f64,self.y+mult[1]*normal(MEAN_MOVE,STD_MOVE,MAX_MOVE)),(self.origin_y as f64+self.range_y as f64));
+                new_x = limits::min(limits::max(self.origin_x as f64,self.x+mult[0]*normal(MEAN_MOVE,STD_MOVE,MAX_MOVE)),self.origin_x as f64+self.range_x as f64);
+                new_y = limits::min(limits::max(self.origin_y as f64,self.y+mult[1]*normal(MEAN_MOVE,STD_MOVE,MAX_MOVE)),self.origin_y as f64+self.range_y as f64);
                 if FLY{
-                    new_z = limits::min(limits::max(self.origin_z as f64,self.z+mult[2]*normal(MEAN_MOVE_Z,STD_MOVE_Z,MAX_MOVE_Z)),(self.origin_z as f64+self.range_z as f64));
+                    new_z = limits::min(limits::max(self.origin_z as f64,self.z+mult[2]*normal(MEAN_MOVE_Z,STD_MOVE_Z,MAX_MOVE_Z)),self.origin_z as f64+self.range_z as f64);
                 }
             }else{
                 new_x = limits::min(limits::max(0.0,self.x+mult[0]*normal(MEAN_MOVE,STD_MOVE,MAX_MOVE)),GRIDSIZE[self.zone as usize][0]);
