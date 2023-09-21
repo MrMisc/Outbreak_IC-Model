@@ -333,7 +333,7 @@ const EVISCERATE_DECAY:u8 = 5;
 const NO_OF_EVISCERATORS:[usize;1] = [6];
 const EVISCERATOR_TO_HOST_PROBABILITY_DECAY:f64 = 0.25;   //Multiplicative decrease of  probability - starting from LISTOFPROBABILITIES value 100%->75% (if 0.25 is value)->50% ->25%->0%
 //Evisceration -------------> Mishap/Explosion parameters
-const MISHAP:bool = true;
+const MISHAP:bool = false;
 const MISHAP_PROBABILITY:f64 = 0.01;
 const MISHAP_RADIUS:f64 = 9.0; //Must be larger than the range_x of the eviscerate boxes for there to be any change in operation
 //Transfer parameters
@@ -1074,6 +1074,9 @@ fn main(){
     writeln!(file, "- Evisceration Zones: {:?}", EVISCERATE_ZONES).expect("Failed to write to file");   
     writeln!(file, "- NUMBER OF EVISCERATORS: {:?}", NO_OF_EVISCERATORS).expect("Failed to write to file");   
     writeln!(file, "- EVISCERATOR DECAY: {} (Number of hosts an eviscerator has to go through before the infection is gone)", EVISCERATE_DECAY).expect("Failed to write to file");        
+    writeln!(file, "- MISHAP: {} (Can hosts explode by accident during evisceration??)", MISHAP).expect("Failed to write to file");        
+    writeln!(file, "- MISHAP_PROBABILITY: {} (At what probability does this accident happen??)", MISHAP_PROBABILITY).expect("Failed to write to file");        
+    writeln!(file, "- MISHAP_RADIUS: {} (At what radius does this explosion occur - (currently fixed radius)??)", MISHAP_RADIUS).expect("Failed to write to file");        
 
     // Transfer config
     writeln!(file, "\n## Transfer Configuration").expect("Failed to write to file");
