@@ -561,7 +561,7 @@ htmlwidgets::saveWidget(fig, "Line.html", selfcontained = TRUE)
 data<-read.csv("output.csv",header = FALSE)
 colnames(data) <- c(
   "HitPct1", "TotalSamples1", "HitSamples1",
-  "HitPct2", "TotalSamples2", "HitSamples2","Zone"
+  "HitPct2", "TotalSamples2", "HitSamples2","HitPct3","HitSamples3","Zone"
 )
 
 #Round up values
@@ -594,6 +594,17 @@ fig_dots <- data %>%
               paste(zone_data$HitSamples1, "out of ", zone_data$TotalSamples1, " hosts @ ",zone_data$TimeUnit," hours")
             },
             hovertemplate = "%{y} % of motile hosts <br> are infected  <br> ie %{customdata}") %>%
+  add_trace(x = ~TimeUnit,
+            y = ~HitPct3,
+            frame = ~Zone,  # Use TimeUnit for animation frames
+            color = "Colonized Hosts",
+            colors = c("#2A6074", "#00C9B1"),
+            size = ~TotalSamples1,
+            customdata = ~{
+              zone_data <- data[data$TimeUnit == TimeUnit, ]
+              paste(zone_data$HitSamples3, "out of ", zone_data$TotalSamples1, " colonized hosts @ ",zone_data$TimeUnit," hours")
+            },
+            hovertemplate = "%{y} % of motile hosts <br> are colonized  <br> ie %{customdata}") %>%            
   add_trace(
     x = ~TimeUnit,
     y = ~HitPct2,
