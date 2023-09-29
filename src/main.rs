@@ -323,7 +323,7 @@ pub struct host{
 //Resolution
 const STEP:[[usize;3];1] = [[200,200,2]];  //Unit distance of segments ->Could be used to make homogeneous zoning (Might not be very flexible a modelling decision)
 const HOUR_STEP: f64 = 4.0; //Number of times hosts move per hour
-const LENGTH: usize = 18*24; //How long do you want the simulation to be?
+const LENGTH: usize = 30*24; //How long do you want the simulation to be?
 //Infection/Colonization rules
 // ------------Do only colonized hosts spread disease or do infected hosts spread
 const COLONIZATION_SPREAD_MODEL:bool = true;
@@ -336,7 +336,13 @@ const ADJUSTED_TIME_TO_COLONIZE:[f64;2] = [4.0,1.0/2.0];  //In days, unlike hour
 
 const NO_TO_COLONIZE:u32 = 100;
 //Infection module
-const CONTACT_SPREAD:bool = false; // Host -> Host, Host -> Faeces and Host -> Eggs via spatial proximity
+const HOSTTOHOST_CONTACT_SPREAD:bool = true; // Host -> Host, Host -> Faeces and Host -> Eggs via spatial proximity
+const HOSTTOEGG_CONTACT_SPREAD:bool = false;
+const HOSTTOFAECES_CONTACT_SPREAD:bool = false;
+const EGGTOHOST_CONTACT_SPREAD:bool = false;
+const FAECESTOHOST_CONTACT_SPREAD:bool = true;
+const EGGTOFAECES_CONTACT_SPREAD:bool = true;
+const FAECESTOEGG_CONTACT_SPREAD:bool = true;
 // const INITIAL_COLONIZATION_RATE:f64 = 0.47; //Probability of infection, resulting in colonization -> DAILY RATE ie PER DAY
 //Space
 const LISTOFPROBABILITIES:[f64;1] = [0.1]; //Probability of transfer of samonella per zone - starting from zone 0 onwards
@@ -761,7 +767,14 @@ impl host{
             .filter_map(|mut x| {
                 for inf in &cloneof {
                     let segment_boundary_condition:bool = !TRANSFERS_ONLY_WITHIN[x.zone] || TRANSFERS_ONLY_WITHIN[x.zone] && x.origin_x == inf.origin_x && x.origin_y == inf.origin_y && x.origin_z == inf.origin_z;
-                    let contact_rules:bool = (CONTACT_SPREAD || !CONTACT_SPREAD && inf.motile != 0);
+                    let hosttohost_contact_rules:bool = (HOSTTOHOST_CONTACT_SPREAD || !HOSTTOHOST_CONTACT_SPREAD && !(inf.motile == 0 && x.motile ==0));
+                    let hosttoegg_contact_rules:bool = (HOSTTOEGG_CONTACT_SPREAD || (!HOSTTOEGG_CONTACT_SPREAD && !(inf.motile == 0 && x.motile == 1)));
+                    let hosttofaeces_contact_rules:bool = (HOSTTOFAECES_CONTACT_SPREAD || !HOSTTOFAECES_CONTACT_SPREAD &&!(inf.motile == 0 && x.motile == 2));
+                    let eggtohost_contact_rules:bool = (EGGTOHOST_CONTACT_SPREAD || !EGGTOHOST_CONTACT_SPREAD && !(inf.motile == 1 && x.motile == 0));
+                    let faecestohost_contact_rules:bool = (FAECESTOHOST_CONTACT_SPREAD || !FAECESTOHOST_CONTACT_SPREAD &&!(inf.motile == 2 && x.motile == 0));
+                    let eggtofaeces_contact_rules:bool = (EGGTOFAECES_CONTACT_SPREAD || !EGGTOFAECES_CONTACT_SPREAD && !(inf.motile ==  1 && x.motile == 2));
+                    let faecestoegg_contact_rules:bool = (FAECESTOEGG_CONTACT_SPREAD || !FAECESTOEGG_CONTACT_SPREAD && !(inf.motile ==  2 && x.motile == 1));
+                    let contact_rules:bool = hosttohost_contact_rules && hosttoegg_contact_rules && hosttofaeces_contact_rules && eggtohost_contact_rules && faecestohost_contact_rules && eggtofaeces_contact_rules && faecestoegg_contact_rules;
                     if host::dist(inf, &x) && inf.zone == x.zone && segment_boundary_condition && contact_rules{
                         let before = x.infected.clone();
                         x.infected = x.transfer(1.0);
@@ -796,15 +809,8 @@ impl host{
         inventory
     }
     
-    fn cleanup(inventory:Vec<host>)->Vec<host>{
-        inventory.into_par_iter().filter_map(|mut x|{
-            if x.motile==2 || (!COLLECT_DEPOSITS && x.motile == 1){ // If host consumable deposits are not desired, treat them as equivalent to faeces to clean up
-                // println!("Cleaning!");
-                None
-            }else{
-                Some(x)
-            }
-        }).collect()
+    fn cleanup(inventory:Vec<host>)->(Vec<host>,Vec<host>){
+        inventory.into_par_iter().partition(|x| x.motile==2 || (!COLLECT_DEPOSITS && x.motile == 1))
     }
     fn collect(inventory:Vec<host>)->[Vec<host>;2]{   //hosts and deposits potentially get collected
         let mut collection:Vec<host> = Vec::new();
@@ -942,10 +948,12 @@ impl host{
 
 fn main(){
     let mut chickens: Vec<host> = Vec::new();
+    let mut faecal_inventory: Vec<host> = Vec::new();
     // let mut feast: Vec<host> =  Vec::new();
     let mut hosts_in_collection:[u64;2] = [0,1];
     let mut colonials_in_collection:[u64;2] = [0,1];
     let mut deposits_in_collection:[u64;2] = [0,1];
+    let mut faecal_collection:[u64;2] = [0,1];
     let mut zones:Vec<Zone_3D> = Vec::new();
 
     //Influx parameter
@@ -1005,7 +1013,7 @@ fn main(){
     for time in 0..LENGTH{
         let mut collect: Vec<host> = Vec::new();
         if time % (24/FAECAL_CLEANUP_FREQUENCY) ==0{
-            chickens = host::cleanup(chickens);
+            (faecal_inventory,chickens) = host::cleanup(chickens);
         }
         // println!("{} CHECK {}",time%(PERIOD_OF_TRANSPORT  as usize),time%(PERIOD_OF_TRANSPORT  as usize) == 0);
         if time%(PERIOD_OF_TRANSPORT  as usize)==0{
@@ -1013,26 +1021,6 @@ fn main(){
             host::transport(&mut chickens,&mut zones,influx);
             // println!("Total number of chickens is {}: Total number of faeces is {}",  chickens.clone().into_iter().filter(|x| x.motile == 0).collect::<Vec<_>>().len() as u64,chickens.clone().into_iter().filter(|x| x.motile == 2).collect::<Vec<_>>().len() as u64)
         }        
-        //zone 2 check
-        // let zone2_capacity:Vec<u32> = zones[2].segments.iter().filter_map(|segment| {
-        //     if segment.capacity!=1{
-        //         Some(segment.capacity)
-        //     }else{
-        //         None
-        //     }
-        // }).collect();
-        // println!("Zone 2 {:?}",zone2_capacity);
-        // println!("-----------------------------------Zone capacities are ...{},{},{}-------------------------------------",zones[0].capacity,zones[1].capacity,zones[2].capacity);
-        // let mut number:usize = 1;
-        // for i in 0..3{
-        //     number*=(GRIDSIZE[2][i] as usize)/STEP[2][i];
-        // }
-        // number*=NO_OF_HOSTS_PER_SEGMENT[2] as usize;
-        // if zones[2].capacity>number as u32{
-        //     println!("Zone 2 has exceede capacity! UNDEFINED BEHAVIOUR");
-        //     println!("Time {}",time);
-        //     panic!();
-        // }
 
 
         for times in FEED_TIMES{
@@ -1069,6 +1057,8 @@ fn main(){
         let no_of_hosts: u64 = collect.clone().into_par_iter().filter(|x| x.motile == 0).collect::<Vec<_>>().len() as u64;
         let no_of_deposits: u64 = collect.clone().into_par_iter().filter(|x| x.motile == 1).collect::<Vec<_>>().len() as u64;
         let no_of_infected_deposits: u64 = collect.clone().into_par_iter().filter(|x| x.motile == 1 && x.infected).collect::<Vec<_>>().len() as u64;
+        let no_of_faeces: u64 = faecal_inventory.clone().into_par_iter().filter(|x| x.motile == 2).collect::<Vec<_>>().len() as u64;
+        let no_of_infected_faeces:u64 = faecal_inventory.clone().into_par_iter().filter(|x| x.motile == 2 && x.infected).collect::<Vec<_>>().len() as u64;
 
         hosts_in_collection[0] += no_of_infected_hosts;
         colonials_in_collection[0] += no_of_colonized_hosts;
@@ -1076,6 +1066,8 @@ fn main(){
         colonials_in_collection[1] += no_of_hosts;
         deposits_in_collection[0] += no_of_infected_deposits;
         deposits_in_collection[1] += no_of_deposits;
+        faecal_collection[0] += no_of_infected_faeces;
+        faecal_collection[1] += no_of_faeces;
 
         if INFLUX && time%PERIOD_OF_INFLUX as usize==0 && time>0{
             influx = true;
@@ -1128,6 +1120,9 @@ fn main(){
         let _total_hosts2 = deposits_in_collection[1];
         let _no3 = colonials_in_collection[0];
         let _perc3 = (colonials_in_collection[0] as f64)/(colonials_in_collection[1] as f64) * 100.0;
+        let _no4 = faecal_collection[0];
+        let _perc4 = (faecal_collection[0] as f64)/(faecal_collection[1] as f64)*100.0;
+        let _total_faeces = faecal_collection[1];
         // println!("{} {} {} {} {} {}",perc,total_hosts,no,perc2,total_hosts2,no2);    
         // println!("{} {} {} {} {} {} {} {} {} {} {} {}",perc,total_hosts,no,perc2,total_hosts2,no2,_perc,_total_hosts,_no,_perc2,_total_hosts2,_no2);
         wtr.write_record(&[
@@ -1139,9 +1134,9 @@ fn main(){
             _no2.to_string(),
             _perc3.to_string(),            
             _no3.to_string(),
-            (0.0).to_string(),
-            (0.0).to_string(),
-            (0.0).to_string(),
+            _perc4.to_string(),
+            _total_faeces.to_string(),
+            _no4.to_string(),
             "Collection Zone".to_string(),
         ])
         .unwrap();
