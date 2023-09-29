@@ -2,7 +2,7 @@
 use rand::distributions::Uniform;
 use rand::distributions::{Distribution, Standard};
 use rand::{thread_rng, Rng};
-use statrs::distribution::{Normal, Poisson, StudentsT, Triangular, Weibull};
+use statrs::distribution::{Normal, Poisson, StudentsT, Triangular, Weibull,Gamma};
 extern crate rayon;
 use rayon::prelude::*;
 
@@ -69,6 +69,17 @@ pub fn normal(mean: f64, std: f64, upper:f64) -> f64 {
         }
     }
     thing
+}
+
+pub fn gamma(alpha:f64, beta:f64)->f64{
+    let mut rng = thread_rng();
+    let v: &Vec<f64> =
+    &Gamma::new(alpha, beta)
+        .unwrap()
+        .sample_iter(&mut rng)
+        .take(1)
+        .collect();
+    v[0]
 }
 
 pub fn roll(prob:f64)->bool{
@@ -309,16 +320,24 @@ pub struct host{
     range_z:u64
 }
 //Note that if you want to adjust the number of zones, you have to, in addition to adjusting the individual values to your liking per zone, also need to change the slice types below!
+//Resolution
+const STEP:[[usize;3];1] = [[200,200,2]];  //Unit distance of segments ->Could be used to make homogeneous zoning (Might not be very flexible a modelling decision)
+const HOUR_STEP: f64 = 4.0; //Number of times hosts move per hour
+const LENGTH: usize = 18*24; //How long do you want the simulation to be?
 //Infection/Colonization rules
 // ------------Do only colonized hosts spread disease or do infected hosts spread
 const COLONIZATION_SPREAD_MODEL:bool = true;
 const TIME_OR_CONTACT:bool = true; //true for time -> contact uses number of times infected to determine colonization
+//If you want to use a truncated normal distribution for time to go from infected to colonized ...
 const TIME_TO_COLONIZE:[f64;2] = [5.0*24.0, 11.6*24.0]; //95% CI for generation time
 const COLONIZE_TIME_MAX_OVERRIDE:f64 = 20.0*24.0;
+//If you want to use a gamma distribution
+const ADJUSTED_TIME_TO_COLONIZE:[f64;2] = [4.0,1.0/2.0];  //In days, unlike hours. This is converted to hours within code
+
 const NO_TO_COLONIZE:u32 = 100;
 //Infection module
 const CONTACT_SPREAD:bool = false; // Host -> Host, Host -> Faeces and Host -> Eggs via spatial proximity
-
+// const INITIAL_COLONIZATION_RATE:f64 = 0.47; //Probability of infection, resulting in colonization -> DAILY RATE ie PER DAY
 //Space
 const LISTOFPROBABILITIES:[f64;1] = [0.1]; //Probability of transfer of samonella per zone - starting from zone 0 onwards
 const GRIDSIZE:[[f64;3];1] = [[200.0,200.0,2.0]];
@@ -346,8 +365,10 @@ const DEFECATION_RATE:f64 = 6.0; //Number times a day host is expected to defeca
 const DEPOSIT:bool = true;
 const DEPOSIT_RATE:f64 = 1.0; //Number of times a day host is expected to deposit a consumable deposit
 
-const PROBABILITY_OF_HORIZONTAL_TRANSMISSION:f64 = 0.8;
-const RATE_OF_TRANSMISSION_DECAY: f64 = 0.17;
+const PROBABILITY_OF_HORIZONTAL_TRANSMISSION:f64 = 0.05; //Chance of infected, but not yet colonized host, infecting their own deposits-> eggs
+// const RATE_OF_COLONIZATION_DECAY: f64 = 0.17;
+
+const FECAL_SHEDDING_PERIOD:f64 = 19.77*24.0;//Period in of which faeces from infected hosts will be infected, after which they will not be.
 //Feed parameters
 const FEED:bool = false; //Do the hosts get fed?
 const FEED_INFECTION_RATE:f64 = 0.003; //Probability of feed being infected
@@ -374,10 +395,6 @@ const AGE_OF_DEPOSITCOLLECTION:f64 = 1.0*24.0; //If you were collecting their eg
 const FAECAL_CLEANUP_FREQUENCY:usize = 2; //How many times a day do you want faecal matter to be cleaned up?
 //or do we do time collection instead?
 const TIME_OF_COLLECTION :f64 = 200.0; //Time that the host has spent in the last zone from which you collect ONLY. NOT THE TOTAL TIME SPENT IN SIMULATION
-//Resolution
-const STEP:[[usize;3];1] = [[200,200,2]];  //Unit distance of segments ->Could be used to make homogeneous zoning (Might not be very flexible a modelling decision)
-const HOUR_STEP: f64 = 4.0; //Number of times hosts move per hour
-const LENGTH: usize = 18*24; //How long do you want the simulation to be?
 //Influx? Do you want new chickens being fed into the scenario everytime the first zone exports some to the succeeding zones?
 const INFLUX:bool = false;
 const PERIOD_OF_INFLUX:u8 = 24; //How many hours before new batch of hosts are imported?
@@ -516,11 +533,11 @@ impl host{
         //We shall make it such that the chicken is spawned within the bottom left corner of each "restricted grid" - ie cage
         let prob:f64 = LISTOFPROBABILITIES[zone.clone()];
         //Add a random age generator
-        host{infected:false,number_of_times_infected:0,time_infected:0.0,generation_time:normal(TIME_TO_COLONIZE[0],TIME_TO_COLONIZE[1],COLONIZE_TIME_MAX_OVERRIDE),colonized:false,motile:0,zone:zone,prob1:prob,prob2:std,x:loc_x as f64,y:loc_y as f64,z:loc_z as f64,age:normal(MEAN_AGE,STD_AGE,MAX_AGE),time:0.0, origin_x:loc_x as u64,origin_y:loc_y as u64,origin_z: loc_z as u64,restrict:restriction,range_x:range_x,range_y:range_y,range_z:range_z}
+        host{infected:false,number_of_times_infected:0,time_infected:0.0,generation_time:gamma(ADJUSTED_TIME_TO_COLONIZE[0],ADJUSTED_TIME_TO_COLONIZE[1])*24.0,colonized:false,motile:0,zone:zone,prob1:prob,prob2:std,x:loc_x as f64,y:loc_y as f64,z:loc_z as f64,age:normal(MEAN_AGE,STD_AGE,MAX_AGE),time:0.0, origin_x:loc_x as u64,origin_y:loc_y as u64,origin_z: loc_z as u64,restrict:restriction,range_x:range_x,range_y:range_y,range_z:range_z}
     }
     fn new_inf(zone:usize, std:f64,loc_x:f64, loc_y:f64,loc_z:f64,restriction:bool,range_x:u64,range_y:u64,range_z:u64)->host{ //presumably a newly infected chicken that spreads disease is colonized
         let prob:f64 = LISTOFPROBABILITIES[zone.clone()];
-        host{infected:true,number_of_times_infected:0,time_infected:0.0,generation_time:normal(TIME_TO_COLONIZE[0],TIME_TO_COLONIZE[1],COLONIZE_TIME_MAX_OVERRIDE),colonized:true,motile:0,zone:zone,prob1:prob,prob2:std,x:loc_x as f64,y:loc_y as f64,z:loc_z as f64,age:normal(MEAN_AGE,STD_AGE,MAX_AGE),time:0.0, origin_x:loc_x as u64,origin_y:loc_y as u64,origin_z: loc_z as u64,restrict:restriction,range_x:range_x,range_y:range_y,range_z:range_z}
+        host{infected:true,number_of_times_infected:0,time_infected:0.0,generation_time:gamma(ADJUSTED_TIME_TO_COLONIZE[0],ADJUSTED_TIME_TO_COLONIZE[1])*24.0,colonized:true,motile:0,zone:zone,prob1:prob,prob2:std,x:loc_x as f64,y:loc_y as f64,z:loc_z as f64,age:normal(MEAN_AGE,STD_AGE,MAX_AGE),time:0.0, origin_x:loc_x as u64,origin_y:loc_y as u64,origin_z: loc_z as u64,restrict:restriction,range_x:range_x,range_y:range_y,range_z:range_z}
     }
     fn deposit(self, consumable: bool)->host{ //Direct way to lay deposit from host. The function is 100% deterministic and layering a probability clause before this is typically expected
         let zone = self.zone.clone();
@@ -532,8 +549,17 @@ impl host{
         if !RESTRICTION{ //If there are no containers holding the hosts (ie RESTRICTION), these hosts are keeping themselves above z = 0 by flying/floating etc, then deposits will necessary FALL to the floor ie z = 0
             z = 0.0;
         }
-        // println!("Probability of infected drop now is {}",PROBABILITY_OF_HORIZONTAL_TRANSMISSION*(1.0-RATE_OF_TRANSMISSION_DECAY).powf(self.time_infected));
-        let inf = self.infected.clone() && roll(PROBABILITY_OF_HORIZONTAL_TRANSMISSION*(1.0-RATE_OF_TRANSMISSION_DECAY).powf(self.time_infected));
+        // println!("Probability of infected drop now is {}",PROBABILITY_OF_HORIZONTAL_TRANSMISSION*(1.0-RATE_OF_COLONIZATION_DECAY).powf(self.time_infected));
+        let mut inf = false;
+        if !COLONIZATION_SPREAD_MODEL{
+            inf = self.infected;
+        }else if self.colonized{
+            inf = true;
+        }else if self.infected && self.time_infected<FECAL_SHEDDING_PERIOD && self.motile == 2{
+            inf = true;
+        }else if self.infected && self.motile == 1{
+            inf = roll(PROBABILITY_OF_HORIZONTAL_TRANSMISSION);
+        }
         let range_y = self.range_y.clone();
         let range_x = self.range_x.clone();
         let range_z = self.range_z.clone();
@@ -541,10 +567,14 @@ impl host{
         let origin_x = self.origin_x.clone();
         let origin_y = self.origin_y.clone();
         let origin_z = self.origin_z.clone();
+
         // println!("EGG BEING LAID");
         //Logic: If infected, immediately count as colonized for egg and faeces. Don't need to wait for it to be considered an infectant whichever colonization or non colonization model we use
-        if consumable{host{infected:inf,number_of_times_infected:0,time_infected:0.0,generation_time:self.generation_time,colonized:inf,motile:1,zone:zone,prob1:prob1,prob2:prob2,x:x,y:y,z:z,age:0.0,time:0.0,origin_x:x as u64,origin_y:y as u64,origin_z:z as u64,restrict:restriction,range_x:range_x,range_y:range_y,range_z:range_z}}
-        else{
+        if consumable{
+            host{infected:inf,number_of_times_infected:0,time_infected:0.0,generation_time:self.generation_time,colonized:inf,motile:1,zone:zone,prob1:prob1,prob2:prob2,x:x,y:y,z:z,age:0.0,time:0.0,origin_x:x as u64,origin_y:y as u64,origin_z:z as u64,restrict:restriction,range_x:range_x,range_y:range_y,range_z:range_z}
+        }
+        else{//fecal shedding
+
             // println!("Pooping!");
             host{infected:inf,number_of_times_infected:0,time_infected:0.0,generation_time:self.generation_time,colonized:inf,motile:2,zone:zone,prob1:prob1,prob2:prob2,x:x,y:y,z:z,age:0.0,time:0.0,origin_x:x as u64,origin_y:y as u64,origin_z:z as u64,restrict:restriction,range_x:range_x,range_y:range_y,range_z:range_z}
         }
@@ -593,7 +623,10 @@ impl host{
     }
     fn shuffle(mut self)->host{
         if self.infected{self.time_infected+=1.0/HOUR_STEP;}
-        if TIME_OR_CONTACT && self.time_infected>self.generation_time || (!TIME_OR_CONTACT && self.number_of_times_infected>NO_TO_COLONIZE) && self.motile == 0{
+        // let initial_colonization_rate_h:f64 = 1.0-(1.0-INITIAL_COLONIZATION_RATE).powf(1.0/(24.0*HOUR_STEP));
+        if (TIME_OR_CONTACT && !self.colonized && self.infected)&& COLONIZATION_SPREAD_MODEL && self.motile == 0{
+            if self.time_infected>self.generation_time{self.colonized = true;}
+        }else if COLONIZATION_SPREAD_MODEL && !TIME_OR_CONTACT && self.number_of_times_infected>NO_TO_COLONIZE && self.infected && self.motile == 0{
             self.colonized = true;
         }
         if self.motile==0 && EVISCERATE_ZONES.contains(&self.zone) == false{
