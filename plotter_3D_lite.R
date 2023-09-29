@@ -15,7 +15,7 @@ numbers_<-c()
 
 
 print(getwd())
-
+coordinates <- strsplit(record, " ")
 # Plot heatmap
 library(ggplot2)
 library(pandoc)
@@ -36,19 +36,20 @@ library(thematic)
 library(extrafont)
 library(pandoc)
 # Extract x, y coordinates
-coordinates <- strsplit(record, " ")
+
 print("Beginning read...")
 
 
 data<-read.csv("output.csv",header = FALSE)
 colnames(data) <- c(
   "HitPct1", "TotalSamples1", "HitSamples1",
-  "HitPct2", "TotalSamples2", "HitSamples2","HitPct3","HitSamples3","Zone"
+  "HitPct2", "TotalSamples2", "HitSamples2","HitPct3","HitSamples3","HitPct4", "TotalSamples4", "HitSamples4","Zone"
 )
 
 #Round up values
 data$HitSamples1<-ceiling(data$HitSamples1)
 data$HitSamples2<-ceiling(data$HitSamples2)
+data$HitSamples4<-ceiling(data$HitSamples4)
 # Scatter plot for the first 2 sets of data
 # Define custom theme colors
 thematic_on(bg = "#FCE9D7", fg = "orange", accent = "purple",font = "Yu Gothic")
@@ -100,7 +101,18 @@ fig_dots <- data %>%
             },
     hovertemplate = "%{y} % of sessile deposits <br> are infected  <br> ie %{customdata}",
     line = list(width = 0.35)
-  ) %>%
+  )%>%
+  add_trace(x = ~TimeUnit,
+            y = ~HitPct4,
+            frame = ~Zone,  # Use TimeUnit for animation frames
+            color = "Faeces",
+            colors = c("#2A6074", "#00C9B1"),
+            size = ~TotalSamples4,
+            customdata = ~{
+              zone_data <- data[data$TimeUnit == TimeUnit, ]
+              paste(zone_data$HitSamples4, "out of ", zone_data$TotalSamples4, " hosts @ ",zone_data$TimeUnit," hours")
+            },
+            hovertemplate = "%{y} % of motile hosts <br> are infected  <br> ie %{customdata}") %>%
   layout(title = "Infection Trend within cultivation",
          plot_bgcolor = '#FFF8EE',
          xaxis = list(
