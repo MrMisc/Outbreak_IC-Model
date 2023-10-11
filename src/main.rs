@@ -135,18 +135,34 @@ pub struct Segment_3D{
     eviscerated:bool
 }
 
+
 impl Segment_3D{
-    fn generate(mut self,infected:bool,colonized:bool,n:u32,atc0:f64, atc1:f64,probability:f64,mut hosts:&mut Vec<host>){
+    fn generate(&mut self,infected:bool,colonized:bool,mut n:u32,mut hosts:&mut Vec<host>){
         //fn new(zone:usize, std:f64,loc_x:f64, loc_y:f64,loc_z:f64,restriction:bool,range_x:u64,range_y:u64,range_z:u64, atc0:f64, atc1:f64,probability:f64)->host{
         if n<self.capacity{
             self.capacity-=n;
         }
-        if !infected{hosts.push(host::new(self.zone,0.0,self.origin_x as f64,self.origin_y as f64,self.origin_z as f64,RESTRICTION,self.range_x,self.range_y,self.range_z,atc0,atc1,probability));}
+        // if nig>self.capacity{
+        //     nig = self.capacity;
+        // }
+        // let new_segment = Segment_3D {
+        //     zone: self.zone,
+        //     origin_x: self.origin_x,
+        //     origin_y: self.origin_y,
+        //     origin_z: self.origin_z,
+        //     range_x: self.range_x,
+        //     range_y: self.range_y,
+        //     range_z: self.range_z,
+        //     capacity: self.capacity-nig,
+        //     eviscerated: self.eviscerated,
+        // };        
+        if !infected{hosts.push(host::new(self.zone,0.0,self.origin_x as f64,self.origin_y as f64,self.origin_z as f64,RESTRICTION,self.range_x,self.range_y,self.range_z));}
         else{
-            let mut host_to_add:host = host::new_inf(self.zone,0.0,self.origin_x as f64,self.origin_y as f64,self.origin_z as f64,RESTRICTION,self.range_x,self.range_y,self.range_z,atc0,atc1,probability);
+            let mut host_to_add:host = host::new_inf(self.zone,0.0,self.origin_x as f64,self.origin_y as f64,self.origin_z as f64,RESTRICTION,self.range_x,self.range_y,self.range_z);
             host_to_add.colonized = colonized;
             hosts.push(host_to_add);
         }
+        // new_segment
     }
 }
 
@@ -354,22 +370,23 @@ pub struct host{
 }
 //Note that if you want to adjust the number of zones, you have to, in addition to adjusting the individual values to your liking per zone, also need to change the slice types below!
 //Resolution
-const STEP:[[usize;3];1] = [[300,300,2]];  //Unit distance of segments ->Could be used to make homogeneous zoning (Might not be very flexible a modelling decision)
+const STEP:[[usize;3];1] = [[4,4,4]];  //Unit distance of segments ->Could be used to make homogeneous zoning (Might not be very flexible a modelling decision)
 const HOUR_STEP: f64 = 4.0; //Number of times hosts move per hour
-const LENGTH: usize = 15*24; //How long do you want the simulation to be?
+const LENGTH: usize =56*24; //How long do you want the simulation to be?
 //Infection/Colonization module
 // ------------Do only colonized hosts spread disease or do infected hosts spread
+const HOST_0:f64 = 3.0;
 const COLONIZATION_SPREAD_MODEL:bool = true;
 const TIME_OR_CONTACT:bool = true; //true for time -> contact uses number of times infected to determine colonization
 //If you want to use a truncated normal distribution for time to go from infected to colonized ...
 const TIME_TO_COLONIZE:[f64;2] = [5.0*24.0, 11.6*24.0]; //95% CI for generation time
-const COLONIZE_TIME_MAX_OVERRIDE:f64 = 20.0*24.0;
+const COLONIZE_TIME_MAX_OVERRIDE:f64 = 26.0*24.0;
 //If you want to use a gamma distribution
 const ADJUSTED_TIME_TO_COLONIZE:[f64;2] = [4.0,1.0/2.0];  //In days, unlike hours. This is converted to hours within code
 const PROBABILITY_OF_HORIZONTAL_TRANSMISSION:f64 = 0.05; //Chance of infected, but not yet colonized host, infecting their own deposits-> eggs
 // const RATE_OF_COLONIZATION_DECAY: f64 = 0.17;
 const FECAL_SHEDDING_PERIOD:f64 = 19.77*24.0;//Period in of which faeces from infected hosts will be infected, after which they will not be.
-const RECOVERY_RATE:[f64;2] = [0.0002,0.0003]; //Lower and upper range that increases with age
+const RECOVERY_RATE:[f64;2] = [0.00044264,0.00066390]; //Lower and upper range that increases with age
 
 
 const NO_TO_COLONIZE:u32 = 100;
@@ -383,15 +400,15 @@ const EGGTOFAECES_CONTACT_SPREAD:bool = true;
 const FAECESTOEGG_CONTACT_SPREAD:bool = true;
 // const INITIAL_COLONIZATION_RATE:f64 = 0.47; //Probability of infection, resulting in colonization -> DAILY RATE ie PER DAY
 //Space
-const LISTOFPROBABILITIES:[f64;1] = [0.17]; //Probability of transfer of samonella per zone - starting from zone 0 onwards
-const GRIDSIZE:[[f64;3];1] = [[300.0,300.0,2.0]];
-const MAX_MOVE:f64 = 12.5;
-const MEAN_MOVE:f64 = 2.0;
-const STD_MOVE:f64 = 3.0; // separate movements for Z config
+const LISTOFPROBABILITIES:[f64;1] = [0.63]; //Probability of transfer of samonella per zone - starting from zone 0 onwards
+const GRIDSIZE:[[f64;3];1] = [[120.0,4.0,4.0]];
+const MAX_MOVE:f64 = 1.0;
+const MEAN_MOVE:f64 = 0.5;
+const STD_MOVE:f64 = 1.0; // separate movements for Z config
 const MAX_MOVE_Z:f64 = 1.0;
 const MEAN_MOVE_Z:f64 = 2.0;
 const STD_MOVE_Z:f64 = 4.0;
-const NO_OF_HOSTS_PER_SEGMENT:[u64;1] = [300];
+const NO_OF_HOSTS_PER_SEGMENT:[u64;1] = [2];
 //Space --- Segment ID
 const TRANSFERS_ONLY_WITHIN:[bool;1] = [false]; //Boolean that informs simulation to only allow transmissions to occur WITHIN segments, not between adjacent segments
 //Fly option
@@ -401,14 +418,17 @@ const FLY_FREQ:u8 = 3; //At which Hour step do the
 const TRANSFER_DISTANCE: f64 = 1.3;//maximum distance over which hosts can trasmit diseases to one another
 const SIZE_FACTOR_FOR_EGGS:f64 = 0.15; //eggs are significantly smaller than their original chickens, so it stands to reason that their transfer distance for contact spread should be smaller
 //Host parameters
-const MEAN_AGE:f64 = 5.0*24.0; //Mean age of hosts imported (IN HOURS)
+const PROBABILITY_OF_INFECTION:f64 = 0.12; //probability of imported host being infected
+const MEAN_AGE:f64 = 17.0*7.0*24.0; //Mean age of hosts imported (IN HOURS)
 const STD_AGE:f64 = 3.0*24.0;//Standard deviation of host age (when using normal distribution)
-const MAX_AGE:f64 = 11.0*24.0; //Maximum age of host accepted (Note: as of now, minimum age is 0.0)
+const MAX_AGE:f64 = 20.0*7.0*24.0; //Maximum age of host accepted (Note: as of now, minimum age is 0.0)
 const DEFECATION_RATE:f64 = 6.0; //Number times a day host is expected to defecate
 const MIN_AGE:f64 = 1.0*24.0;
 
 const DEPOSIT:bool = true;
-const DEPOSIT_RATE:f64 = 1.0; //Number of times a day host is expected to deposit a consumable deposit
+const DEPOSIT_RATE_AFFECTED_BY_INFECTION:bool = true;
+const DEPOSIT_RATE:f64 = 6.0/7.0; //Number of times a day host is expected to deposit a consumable deposit
+const DEPOSIT_RATE_INFECTION_MULTIPLIER:f64 = 2.0/3.0;
 //
 
 //Feed parameters
@@ -421,7 +441,7 @@ const SLAUGHTER_POINT:usize = 1; //Somewhere in zone {}, the hosts are slaughter
 //Evisceration parameters
 const EVISCERATE:bool = false;
 const EVISCERATE_ZONES:[usize;1] = [2]; //Zone in which evisceration takes place
-const EVISCERATE_DECAY:u8 = 5; //Number of uninfected chickens  above which eviscerator is considered to have become clean
+const EVISCERATE_DECAY:u8 = 5;
 const NO_OF_EVISCERATORS:[usize;1] = [6];
 const EVISCERATOR_TO_HOST_PROBABILITY_DECAY:f64 = 0.25;   //Multiplicative decrease of  probability - starting from LISTOFPROBABILITIES value 100%->75% (if 0.25 is value)->50% ->25%->0%
 //Evisceration -------------> Mishap/Explosion parameters
@@ -439,11 +459,10 @@ const FAECAL_CLEANUP_FREQUENCY:usize = 2; //How many times a day do you want fae
 const TIME_OF_COLLECTION :f64 = 200.0; //Time that the host has spent in the last zone from which you collect ONLY. NOT THE TOTAL TIME SPENT IN SIMULATION
 //Influx? Do you want new chickens being fed into the scenario everytime the first zone exports some to the succeeding zones?
 const INFLUX:bool = false;
-const PROBABILITY_OF_INFECTION:f64 = 0.12; //probability of IMPORTED host being infected
 const PERIOD_OF_INFLUX:u8 = 24; //How many hours before new batch of hosts are imported?
 const PERIOD_OF_TRANSPORT:u8 = 1; //Prompt to transport chickens between zones every hour (checking that they fulfill ages requirement of course)
 //Restriction?
-const RESTRICTION:bool = false;
+const RESTRICTION:bool = true;
 //Generation Parameters
 const SPORADICITY:f64 = 4.0; //How many fractions of the dimension of the cage/segment do you want the hosts to start at? Bigger number makes the spread of hosts starting point more even per seg
 
@@ -463,6 +482,10 @@ impl host{
                 let prob:f64 = RECOVERY_RATE[0]+(x.age-MIN_AGE) * grad;
                 if roll(prob){
                     x.infected = false;
+                    x.colonized = false;
+                    x.time_infected = 0.0;
+                    x.number_of_times_infected = 0;                    
+                    x.generation_time =gamma(ADJUSTED_TIME_TO_COLONIZE[0],ADJUSTED_TIME_TO_COLONIZE[1])*24.0;
                 }                 
             }
         })
@@ -642,7 +665,9 @@ impl host{
         for ele in vecc_into{
             if DEPOSIT{
                 let mut rng = thread_rng();
-                let v: &Vec<f64> = &Poisson::new(DEPOSIT_RATE/24.0)
+                let mut deposit_rate:f64 = DEPOSIT_RATE;
+                if DEPOSIT_RATE_AFFECTED_BY_INFECTION && ele.infected {deposit_rate*= DEPOSIT_RATE_INFECTION_MULTIPLIER;}
+                let v: &Vec<f64> = &Poisson::new(deposit_rate/24.0)
                 .unwrap()
                 .sample_iter(&mut rng)
                 .take(1)
@@ -1034,7 +1059,7 @@ fn main(){
 
     // println!("Here are the capacities for each of the zones:{},{},{}",zones[0].capacity, zones[1].capacity,zones[2].capacity);
 
-    host::generate_in_grid(&mut zones[0],&mut chickens);
+    // host::generate_in_grid(&mut zones[0],&mut chickens);
     // println!("{:?}", chickens.len());
     // for thing in chickens.clone(){
     //     println!("Located at zone {} in {} {}: MOTION PARAMS: {} for {} and {} for {}",thing.zone,thing.x,thing.y,thing.origin_x,thing.range_x,thing.origin_y,thing.range_y);
@@ -1049,7 +1074,30 @@ fn main(){
 
     //MORE EFFICIENT WAY TO INFECT MORE CHICKENS - insize zone 0
     let zone_to_infect:usize = 0;
-    chickens = host::infect_multiple(chickens,GRIDSIZE[zone_to_infect][0] as u64/2,GRIDSIZE[zone_to_infect][1] as u64/2,GRIDSIZE[zone_to_infect][2] as u64/2,18,0, true);
+    // chickens = host::infect_multiple(chickens,GRIDSIZE[zone_to_infect][0] as u64/2,GRIDSIZE[zone_to_infect][1] as u64/2,GRIDSIZE[zone_to_infect][2] as u64/2,18,0, true);
+    // println!("Total number of chickens is {}", chickens.len());
+    for segment in &mut zones[0].segments {
+        // println!("Segment has coordinates {} {} {}", segment.origin_x, segment.origin_y, segment.origin_z);
+        
+        if segment.origin_x % 8 == 0 {
+            // println!("")
+            segment.generate(false, false, 1, &mut chickens);
+            segment.generate(true, false, 1, &mut chickens);
+            // println!("Laying pure at {} {} {}",segment.origin_x,segment.origin_y,segment.origin_z);
+
+            // if segment.origin_x % 16 == 0 {
+            //     segment.generate(true,false,1,&mut chickens);
+            //     // println!("Laying impure at {} {} {}",segment.origin_x,segment.origin_y,segment.origin_z);
+            // }
+        }            
+    }
+    // let mut check:Vec<host> = chickens.clone();
+    // check.retain(|x| x.infected);
+    // println!("Total number of chickens is {} and total number of chickens infected is {}", chickens.len(),check.len());
+    // panic!("Check done! Exiting!");
+    
+
+
 
 
     //Count number of infected
