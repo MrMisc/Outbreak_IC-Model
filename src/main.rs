@@ -382,11 +382,11 @@ const TIME_OR_CONTACT:bool = true; //true for time -> contact uses number of tim
 const TIME_TO_COLONIZE:[f64;2] = [5.0*24.0, 11.6*24.0]; //95% CI for generation time
 const COLONIZE_TIME_MAX_OVERRIDE:f64 = 26.0*24.0;
 //If you want to use a gamma distribution
-const ADJUSTED_TIME_TO_COLONIZE:[f64;2] = [4.0,1.0/2.0];  //In days, unlike hours. This is converted to hours within code
+const ADJUSTED_TIME_TO_COLONIZE:[f64;2] = [4.5,1.0/2.0];  //In days, unlike hours. This is converted to hours within code
 const PROBABILITY_OF_HORIZONTAL_TRANSMISSION:f64 = 0.05; //Chance of infected, but not yet colonized host, infecting their own deposits-> eggs
 // const RATE_OF_COLONIZATION_DECAY: f64 = 0.17;
 const FECAL_SHEDDING_PERIOD:f64 = 19.77*24.0;//Period in of which faeces from infected hosts will be infected, after which they will not be.
-const RECOVERY_RATE:[f64;2] = [0.00044264,0.00066390]; //Lower and upper range that increases with age
+const RECOVERY_RATE:[f64;2] = [0.002,0.008]; //Lower and upper range that increases with age
 
 
 const NO_TO_COLONIZE:u32 = 100;
@@ -400,8 +400,8 @@ const EGGTOFAECES_CONTACT_SPREAD:bool = true;
 const FAECESTOEGG_CONTACT_SPREAD:bool = true;
 // const INITIAL_COLONIZATION_RATE:f64 = 0.47; //Probability of infection, resulting in colonization -> DAILY RATE ie PER DAY
 //Space
-const LISTOFPROBABILITIES:[f64;1] = [0.63]; //Probability of transfer of samonella per zone - starting from zone 0 onwards
-const GRIDSIZE:[[f64;3];1] = [[120.0,4.0,4.0]];
+const LISTOFPROBABILITIES:[f64;1] = [0.1]; //Probability of transfer of samonella per zone - starting from zone 0 onwards
+const GRIDSIZE:[[f64;3];1] = [[960.0,4.0,4.0]];
 const MAX_MOVE:f64 = 1.0;
 const MEAN_MOVE:f64 = 0.5;
 const STD_MOVE:f64 = 1.0; // separate movements for Z config
@@ -1082,13 +1082,13 @@ fn main(){
         if segment.origin_x % 8 == 0 {
             // println!("")
             segment.generate(false, false, 1, &mut chickens);
-            segment.generate(true, false, 1, &mut chickens);
+            // segment.generate(true, false, 1, &mut chickens);
             // println!("Laying pure at {} {} {}",segment.origin_x,segment.origin_y,segment.origin_z);
 
-            // if segment.origin_x % 16 == 0 {
-            //     segment.generate(true,false,1,&mut chickens);
-            //     // println!("Laying impure at {} {} {}",segment.origin_x,segment.origin_y,segment.origin_z);
-            // }
+            if segment.origin_x % 16 == 0 {
+                segment.generate(true,false,1,&mut chickens);
+                // println!("Laying impure at {} {} {}",segment.origin_x,segment.origin_y,segment.origin_z);
+            }
         }            
     }
     // let mut check:Vec<host> = chickens.clone();
