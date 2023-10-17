@@ -84,7 +84,7 @@ The code includes functions for cleaning the environment and collecting hosts an
 
 ```rust
 const COLLECT_DEPOSITS: bool = true;
-const AGE_OF_DEPOSITCOLLECTION:f64 = 1.0*24.0; //If you were collecting their eggs every 3 days
+const AGE_OF_DEPOSITCOLLECTION:f64 = 1.0*24.0; //If you were collecting their eggs every day
 const FAECAL_CLEANUP_FREQUENCY:usize = 2; //How many times a day do you want faecal matter to be cleaned up?
 ```
 
