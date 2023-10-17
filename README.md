@@ -30,6 +30,63 @@ Colonization represents a more persistent state of infection where the disease-c
 ### Transmission Simulation
 The model uses the transmit function to simulate the spread of diseases. This function is responsible for calculating the probability of one host infecting another. It considers various factors and conditions when determining whether disease transmission occurs, such as host-to-host contact rules(set by **infection control panel**), spatial boundaries, and more.
 
+### Spatial Controls
+
+The model divides the environment into spatial zones. Researchers can customize the following aspects related to spatial zones:
+
+#### Number of zones
+
+You can change the number of spatial zones in the model to match the complexity of the environment. More zones allow for a more detailed representation of the spatial distribution of hosts and diseases.
+
+#### Size and Shape
+
+The size and shape of each zone can be adjusted to mimic different environments. For example, you can have large zones for open fields or small, confined zones for indoor spaces.
+
+### Recovery Rates
+
+Recovery rates play a significant role in modeling the dynamics of infectious diseases. Researchers can modify the following:
+
+```rust
+const RECOVERY_RATE:[f64;2] = [0.002,0.008]; //Lower and upper range that increases with age
+```
+
+which is a linearly increasing recovery rate with age. The gradient is determined by the min and max age that you set here:
+
+```rust
+const MEAN_AGE:f64 = 17.0*7.0*24.0; //Mean age of hosts imported (IN HOURS)
+const STD_AGE:f64 = 3.0*24.0;//Standard deviation of host age (when using normal distribution)
+const MAX_AGE:f64 = 20.0*7.0*24.0; //Maximum age of host accepted (Note: as of now, minimum age is 0.0)
+const DEFECATION_RATE:f64 = 6.0; //Number times a day host is expected to defecate
+const MIN_AGE:f64 = 1.0*24.0;
+```
+
+So the recovery rate is set to be a maximum of the 2nd number in the array set up in RECOVERY_RATE no matter what distribution of ages you provide (Gaussian). 
+
+```rust
+    fn recover(mut vector:&mut Vec<host>,rec0:f64,rec1:f64){
+        vector.iter_mut().for_each(|mut x| {
+            let grad:f64 = (rec1-rec0)/(MAX_AGE - MIN_AGE);
+            let prob:f64 = rec0+(x.age-MIN_AGE) * grad;            
+            if roll(prob){
+                if x.infected && x.motile == 0 && !x.colonized{
+                    x.infected = false;
+                    x.colonized = false;
+                    x.time_infected = 0.0;
+                    x.number_of_times_infected = 0;
+                    x.generation_time =gamma(ADJUSTED_TIME_TO_COLONIZE[0],ADJUSTED_TIME_TO_COLONIZE[1])*24.0;
+                }                 
+            }
+        })
+    }
+```
+
+### Colonization Parameters
+
+#### Time to colonize
+
+The time taken for a persistent infection (which has not been recovered from) to lead to a state of "colonized tissue". This is a simplification of how colonization via a disease is done. It is typically on a spectrum, the % of the tissue that has been colonized. However, for simplicity, we have defined a state of having been colonized. This in turn correlates to a definitive feature that the infected host will lay infected consumable deposits (such as eggs). 
+
+
 ## Implementation Details
 
 ### Host properties
