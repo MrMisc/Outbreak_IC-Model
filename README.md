@@ -30,6 +30,8 @@ Colonization represents a more persistent state of infection where the disease-c
 ### Transmission Simulation
 The model uses the transmit function to simulate the spread of diseases. This function is responsible for calculating the probability of one host infecting another. It considers various factors and conditions when determining whether disease transmission occurs, such as host-to-host contact rules(set by **infection control panel**), spatial boundaries, and more.
 
+## Controls/Parameters
+
 ### Spatial Controls
 
 The model divides the environment into spatial zones. Researchers can customize the following aspects related to spatial zones:
@@ -86,41 +88,6 @@ So the recovery rate is set to be a maximum of the 2nd number in the array set u
 
 The time taken for a persistent infection (which has not been recovered from) to lead to a state of "colonized tissue". This is a simplification of how colonization via a disease is done. It is typically on a spectrum, the % of the tissue that has been colonized. However, for simplicity, we have defined a state of having been colonized. This in turn correlates to a definitive feature that the infected host will lay infected consumable deposits (such as eggs). 
 
-
-## Implementation Details
-
-### Host properties
-The model represents individual hosts (hosts) as objects with various properties, including infection status, age, location, and mobility. These properties play a crucial role in disease transmission.
-
-```rust
-#[derive(Clone)]
-pub struct host{
-    infected:bool,
-    number_of_times_infected:u32,
-    time_infected:f64,
-    generation_time:f64,
-    colonized:bool,
-    motile:u8,
-    zone:usize, //Possible zones denoted by ordinal number sequence
-    prob1:f64,  //Probability of contracting disease - these are tied to zone if you create using .new() implementation within methods
-    prob2:f64,  //standard deviation if required OR second probabiity value for transferring in case that is different from prob1
-    x:f64,
-    y:f64,
-    z:f64, //can be 0 if there is no verticality
-    perched:bool,
-    age:f64,  //Age of host
-    time:f64, //Time host has spent in facility - start from 0.0 from zone 0
-    origin_x:u64,
-    origin_y:u64,
-    origin_z:u64,
-    restrict:bool,  //Are the hosts free roaming or not?
-    range_x:u64,  //"Internal" GRIDSIZE to simulate caged hosts in side the zone itself, not free roaming within facility ->Now to be taken from Segment
-    range_y:u64,  //Same as above but for the y direction
-    range_z:u64
-}
-```
-
-
 ### Host Movements
 
 The code simulates the movement of hosts, considering factors like restrictions on movement, perching and flying. Movement impacts the likelihood of contact between hosts, and is a very regularly overlooked consideration in other extrapolated mathetmatical infectious models. 
@@ -175,6 +142,42 @@ const COLLECT_DEPOSITS: bool = true;
 const AGE_OF_DEPOSITCOLLECTION:f64 = 1.0*24.0; //If you were collecting their eggs every day
 const FAECAL_CLEANUP_FREQUENCY:usize = 2; //How many times a day do you want faecal matter to be cleaned up?
 ```
+
+## Implementation Details
+
+### Host properties
+The model represents individual hosts (hosts) as objects with various properties, including infection status, age, location, and mobility. These properties play a crucial role in disease transmission.
+
+```rust
+#[derive(Clone)]
+pub struct host{
+    infected:bool,
+    number_of_times_infected:u32,
+    time_infected:f64,
+    generation_time:f64,
+    colonized:bool,
+    motile:u8,
+    zone:usize, //Possible zones denoted by ordinal number sequence
+    prob1:f64,  //Probability of contracting disease - these are tied to zone if you create using .new() implementation within methods
+    prob2:f64,  //standard deviation if required OR second probabiity value for transferring in case that is different from prob1
+    x:f64,
+    y:f64,
+    z:f64, //can be 0 if there is no verticality
+    perched:bool,
+    age:f64,  //Age of host
+    time:f64, //Time host has spent in facility - start from 0.0 from zone 0
+    origin_x:u64,
+    origin_y:u64,
+    origin_z:u64,
+    restrict:bool,  //Are the hosts free roaming or not?
+    range_x:u64,  //"Internal" GRIDSIZE to simulate caged hosts in side the zone itself, not free roaming within facility ->Now to be taken from Segment
+    range_y:u64,  //Same as above but for the y direction
+    range_z:u64
+}
+```
+
+
+
 
 ## Conclusion
 
