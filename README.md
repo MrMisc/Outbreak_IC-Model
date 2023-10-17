@@ -135,6 +135,37 @@ const STD_MOVE_Z:f64 = 4.0;
 ```
 The above is a snippet of the code showing where the user is able to adjust the movement parameters of the hosts. Movements are currently following a Gaussian distribution. This can easily be changed to any other distributions thanks to statrs being used in this. 
 
+#### Restriction
+
+Restrictions can also be placed on whether hosts can move out of their individual segments (cages) within each designated zone as well.
+
+```rust
+//Restriction?
+const RESTRICTION:bool = true;
+```
+#### Perching or Flying
+
+You can enable or disable perching and flying behavior in hosts. Depending on your scenario, you may choose to represent hosts that can perch or fly between zones.
+
+```rust
+//Vertical perches
+const PERCH:bool = false;
+const PERCH_HEIGHT:f64 = 2.0; //Number to be smaller than segment range z -> Denotes frequency of heights at which hens can perch
+const PERCH_FREQ:f64 = 0.15; //probability that chickens go to perch
+const DEPERCH_FREQ:f64 = 0.4; //probability that a chicken when already on perch, decides to go down from perch
+```
+Note that perching and flying has been set to be **mutually exclusive** in this model. A scenario where the hosts fly, cannot be simulated whereby they also perch as of now.
+
+#### Nesting behaviour
+
+Some hosts exhibit proper nesting behaviour in the appropriate spaces. This model has a simple implementation for it.
+
+```rust
+//Nesting areas
+const NEST:bool = false;
+const NESTING_AREA:f64 = 0.25; //ratio of the total area of segment in of which nesting area is designated - min x y z side
+```
+
 ### Cleaning and Collection
 
 The code includes functions for cleaning the environment and collecting hosts and deposits. These functions influence the removal of hosts from the population based on age and mobility.
