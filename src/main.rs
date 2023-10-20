@@ -810,6 +810,7 @@ impl host{
                 if !self.eating{
                     new_x = limits::min(limits::max(self.origin_x as f64,self.x+mult[0]*normal(MEAN_MOVE,STD_MOVE,MAX_MOVE)),self.origin_x as f64+self.range_x as f64);
                 }else{ // conservative movement pattern of the 2 chosen for the normal distribution when the chickens have gathered at the various nodes to feed.
+                    self.perched = false;
                     new_x = limits::min(limits::max(self.origin_x as f64,self.eat_x+mult[0]*normal(limits::min(MEAN_MOVE,FEEDER_SPACING/2.0),limits::min(FEEDER_SPACING/2.0,STD_MOVE),FEEDER_SPACING)),self.origin_x as f64+self.range_x as f64);
                 }
                 if !self.perched{
@@ -832,6 +833,7 @@ impl host{
                 if !self.eating{
                     new_x = limits::min(limits::max(0.0,self.x+mult[0]*normal(MEAN_MOVE,STD_MOVE,MAX_MOVE)),GRIDSIZE[self.zone as usize][0]);
                 }else{
+                    self.perched = false;
                     new_x = limits::min(limits::max(0.0,self.eat_x+mult[0]*normal(limits::min(MEAN_MOVE,FEEDER_SPACING/2.0),limits::min(FEEDER_SPACING/2.0,STD_MOVE),FEEDER_SPACING)),GRIDSIZE[self.zone as usize][0]);
                 }
                 if !self.perched{
