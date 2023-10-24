@@ -417,9 +417,10 @@ const STD_MOVE_Z:f64 = 4.0;
 const NO_OF_HOSTS_PER_SEGMENT:[u64;3] = [2,4,4];
 //Anchor points
 //Vertical perches
-const PERCH:bool = false;
+const PERCH:bool = true;
+const PERCH_ZONES:[usize;1]= [1];
 const PERCH_HEIGHT:f64 = 2.0; //Number to be smaller than segment range z -> Denotes frequency of heights at which hens can perch
-const PERCH_FREQ:f64 = 0.15; //probability that hosts go to perch
+const PERCH_FREQ:f64 = 0.5; //probability that hosts go to perch
 const DEPERCH_FREQ:f64 = 0.4; //probability that a host when already on perch, decides to go down from perch
 //Nesting areas
 const NEST:bool = false;
@@ -822,10 +823,10 @@ impl host{
                 }
                 if FLY{
                     new_z = limits::min(limits::max(self.origin_z as f64,self.z+mult[2]*normal(MEAN_MOVE_Z,STD_MOVE_Z,MAX_MOVE_Z)),self.origin_z as f64+self.range_z as f64);
-                }else if PERCH && roll(PERCH_FREQ){ //no need perching concept for flying creatures
+                }else if PERCH && PERCH_ZONES.contains(&self.zone) && roll(PERCH_FREQ){ //no need perching concept for flying creatures
                     new_z = limits::min(self.z+PERCH_HEIGHT, self.origin_z as f64+self.range_z as f64);
                     self.perched = true;
-                }else if PERCH && roll(DEPERCH_FREQ){
+                }else if PERCH && PERCH_ZONES.contains(&self.zone) && self.perched && roll(DEPERCH_FREQ){
                     new_z = self.origin_z as f64;
                     self.perched = false;
                 }
@@ -845,10 +846,10 @@ impl host{
                 }
                 if FLY{
                     new_z = limits::min(limits::max(0.0,self.z+mult[2]*normal(MEAN_MOVE_Z,STD_MOVE_Z,MAX_MOVE_Z)),GRIDSIZE[self.zone as usize][2]);
-                }else if PERCH && roll(PERCH_FREQ){ //no need perching concept for flying creatures
+                }else if PERCH && PERCH_ZONES.contains(&self.zone) && roll(PERCH_FREQ){ //no need perching concept for flying creatures
                     new_z = limits::min(self.z+PERCH_HEIGHT, self.origin_z as f64+self.range_z as f64);
                     self.perched = true;
-                }else if PERCH && roll(DEPERCH_FREQ){
+                }else if PERCH && PERCH_ZONES.contains(&self.zone) && self.perched && roll(DEPERCH_FREQ){
                     new_z = self.origin_z as f64;
                     self.perched = false;
                 }
@@ -1434,6 +1435,13 @@ fn main(){
     //Generation
     writeln!(file, "\n## Generation").expect("Failed to write to file");
     writeln!(file, "- SPORADICITY: {} ( Bigger number makes the spread of hosts starting point more even per seg)", SPORADICITY).expect("Failed to write to file");
-
+    //Contamination Pathway Toolbox options
+    writeln!(file, "\n##Infection Pathway Toolbox options").expect("Failed to write to file");
+    writeln!(file, "HOSTTOHOST_CONTACT_SPREAD: {} ( Whether infection can spread from mobile host to mobile host)", HOSTTOHOST_CONTACT_SPREAD).expect("Failed to write to file");
+    writeln!(file, "HOSTTOEGG_CONTACT_SPREAD: {} ( Whether infection can spread from mobile host to edible/consumable deposit from host)", HOSTTOEGG_CONTACT_SPREAD).expect("Failed to write to file");
+    writeln!(file, "HOSTTOFAECES_CONTACT_SPREAD: {} ( Whether infection can spread from mobile host to inedible/non-consumable deposit from host - i.e. faecal matter)", HOSTTOFAECES_CONTACT_SPREAD).expect("Failed to write to file");
+    writeln!(file, "EGGTOFAECES_CONTACT_SPREAD: {} ( Whether infection can spread from edible/consumable deposit from host to inedible/non-consumable deposit from host)", EGGTOFAECES_CONTACT_SPREAD).expect("Failed to write to file");
+    writeln!(file, "FAECESTOEGG_CONTACT_SPREAD: {} ( Whether infection can spread from inedible/non-consumable deposit from host to edible/consumable deposit from host)", FAECESTOEGG_CONTACT_SPREAD).expect("Failed to write to file");
+    writeln!(file, "FAECESTOHOST_CONTACT_SPREAD: {} ( Whether infection can spread from inedible/non-consumable deposit from host to mobile host)", FAECESTOHOST_CONTACT_SPREAD).expect("Failed to write to file");
 
 }
