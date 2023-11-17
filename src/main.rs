@@ -788,7 +788,7 @@ impl host{
         }else if COLONIZATION_SPREAD_MODEL && !TIME_OR_CONTACT && self.number_of_times_infected>NO_TO_COLONIZE && self.infected && self.motile == 0{
             self.colonized = true;
         }
-        if self.motile==0 && EVISCERATE_ZONES.contains(&self.zone) == false{ // NOT IN EVISCERATION
+        if self.motile==0 && !EVISCERATE && EVISCERATE_ZONES.contains(&self.zone) == false{ // NOT IN EVISCERATION
             //Whether the movement is negative or positive
             let mut mult:[f64;3] = [0.0,0.0,0.0];
             for index in 0..mult.len(){
@@ -855,7 +855,7 @@ impl host{
                 }
             }            
             host{infected:self.infected,number_of_times_infected:0,time_infected:self.time_infected,generation_time:self.generation_time,colonized:self.colonized,motile:self.motile,zone:self.zone,prob1:self.prob1,prob2:self.prob2,x:new_x,y:new_y,z:self.z,perched:self.perched,eating:eating,eat_x:self.eat_x,eat_y:self.eat_y,eating_time:eating_time,age:self.age+1.0/HOUR_STEP,time:self.time+1.0/HOUR_STEP,origin_x:self.origin_x,origin_y:self.origin_y,origin_z:self.origin_z,restrict:self.restrict,range_x:self.range_x,range_y:self.range_y,range_z:self.range_z}
-        }else if self.motile==0 && EVISCERATE_ZONES.contains(&self.zone){
+        }else if self.motile==0 && EVISCERATE && EVISCERATE_ZONES.contains(&self.zone){
             // println!("Evisceration pending...");
             // self.motile == 1; //It should be presumably electrocuted and hung on a conveyer belt
             self.x = ((self.origin_x as f64) + (self.range_x as f64))/2.0; // square in middle
