@@ -448,11 +448,12 @@ const DEPOSIT_RATE_INFECTION_MULTIPLIER:f64 = 2.0/3.0;
 //
 
 //Feed parameters
-const FEED_1:bool = false; //Do the hosts get fed - omnipotent method
-const FEED_2:bool = true;//Do the hosts get fed - with standalone feeders ->crowding implication
-const FEED_INFECTION_RATE:f64 = 0.003; //Probability of feed being infected
-const FEED_ZONES:[usize;1] = [1]; //To set the zones that have feed provided to them.
-const FEED_TIMES: [usize;2] = [11,14]; //24h format, when hosts get fed: Does not have to be only 2 - has no link to number of zones or anything like that
+const FEED_1:bool = true; //Do the hosts get fed - omnipotent method -> Like feeder belts (adjust Feed infected and Feed infection rate for that) or simply one on one at the same time (true omnipotent method)
+const FEED_2:bool = false;//Do the hosts get fed - with standalone feeders ->crowding implication
+const FEED_INFECTED:f64 = 0.11; //Proportion of times that feed gets infected - set to 1.0 if you simply want to simulate separate feed sources that are independent of each other in terms of being infected at start 
+const FEED_INFECTION_RATE:f64 = 0.8; //Probability of INFECTED FEED infecting hosts that consume it - CAN either mean a. probability that independent feed is infected (ind. of other feed sources being infected at the time) b. ALL feed at time is infected, and this denotes chance that consumption of infected feed leads to infection in host
+const FEED_ZONES:[usize;2] = [0,1]; //To set the zones that have feed provided to them.
+const FEED_TIMES: [usize;2] = [11,5]; //24h format, when hosts get fed: Does not have to be only 2 - has no link to number of zones or anything like that
 const FEEDER_SPACING:f64 = 2.5;
 const FEED_DURATION:f64 = 0.5;
 
@@ -512,10 +513,10 @@ impl host{
         })
     }
     fn feed(mut vector:&mut Vec<host>, origin_x:u64,origin_y:u64,origin_z:u64, zone:usize,time:usize){
-        if FEED_1&&roll(FEED_INFECTION_RATE){
+        if FEED_1&&roll(FEED_INFECTED){
             // println!("Infected feed confirmed");
             vector.iter_mut().for_each(|mut h|{
-                if h.motile == 0 && !h.infected && h.origin_x == origin_x && h.origin_y == origin_y && h.origin_z == origin_z && h.zone == zone{
+                if roll(FEED_INFECTION_RATE) && h.motile == 0 && !h.infected && h.origin_x == origin_x && h.origin_y == origin_y && h.origin_z == origin_z && h.zone == zone{
                     h.infected = h.transfer(1.0);
                     println!("{} {} {} {} {} {}",h.x,h.y,h.z,10,time,h.zone); //10 is now an interaction type driven by the infected feed
                 }
@@ -536,8 +537,9 @@ impl host{
             let total_to_feed:usize = total_to_feed.len();
             let per:usize = total_to_feed/(no as usize);
             // let counter:usize = 0;
-            for x in 1..x_no{
+            for x in 1..x_no{ //indices of the feeder -> not location
                 for y in 1..y_no{
+                    let is_feed_infected:bool = roll(FEED_INFECTED); //IS THE FEED AT THIS LOCATION INFECTED?
                     //relative origin_location to segment frame of reference
                     let x_location = FEEDER_SPACING*(x as f64);
                     let y_location = FEEDER_SPACING*(y as f64);
@@ -547,17 +549,21 @@ impl host{
                     vector.iter_mut().filter(|h| h.motile == 0 && h.origin_x == origin_x && h.origin_y == origin_y && h.origin_z == origin_z && h.zone == zone).skip(start_index).take(per).for_each(|h| {
                         h.eat_x = x_location;
                         h.eat_y = y_location;
+                        if is_feed_infected && !h.infected && roll(FEED_INFECTION_RATE){
+                            h.infected = h.transfer(1.0);
+                            println!("{} {} {} {} {} {}",h.x,h.y,h.z,10,time,h.zone); //10 is now an interaction type driven by the infected feed
+                        }
                     })
                 }
             }
-            if roll(FEED_INFECTION_RATE){
-                vector.iter_mut().for_each(|mut h|{
-                    if h.motile == 0 && !h.infected && h.origin_x == origin_x && h.origin_y == origin_y && h.origin_z == origin_z && h.zone == zone{
-                        h.infected = h.transfer(1.0);
-                        println!("{} {} {} {} {} {}",h.x,h.y,h.z,10,time,h.zone); //10 is now an interaction type driven by the infected feed
-                    }
-                })                       
-            }
+            // if roll(FEED_INFECTED){
+            //     vector.iter_mut().for_each(|mut h|{
+            //         if roll(FEED_INFECTION_RATE) && h.motile == 0 && !h.infected && h.origin_x == origin_x && h.origin_y == origin_y && h.origin_z == origin_z && h.zone == zone{
+            //             h.infected = h.transfer(1.0);
+            //             println!("{} {} {} {} {} {}",h.x,h.y,h.z,10,time,h.zone); //10 is now an interaction type driven by the infected feed
+            //         }
+            //     })                       
+            // }
         }
     }
     fn infect(mut vector:Vec<host>,loc_x:u64,loc_y:u64,loc_z:u64,zone:usize)->Vec<host>{
@@ -788,7 +794,7 @@ impl host{
         }else if COLONIZATION_SPREAD_MODEL && !TIME_OR_CONTACT && self.number_of_times_infected>NO_TO_COLONIZE && self.infected && self.motile == 0{
             self.colonized = true;
         }
-        if self.motile==0 && !EVISCERATE && EVISCERATE_ZONES.contains(&self.zone) == false{ // NOT IN EVISCERATION
+        if self.motile==0 && EVISCERATE_ZONES.contains(&self.zone) == false{ // NOT IN EVISCERATION
             //Whether the movement is negative or positive
             let mut mult:[f64;3] = [0.0,0.0,0.0];
             for index in 0..mult.len(){
@@ -855,7 +861,7 @@ impl host{
                 }
             }            
             host{infected:self.infected,number_of_times_infected:0,time_infected:self.time_infected,generation_time:self.generation_time,colonized:self.colonized,motile:self.motile,zone:self.zone,prob1:self.prob1,prob2:self.prob2,x:new_x,y:new_y,z:self.z,perched:self.perched,eating:eating,eat_x:self.eat_x,eat_y:self.eat_y,eating_time:eating_time,age:self.age+1.0/HOUR_STEP,time:self.time+1.0/HOUR_STEP,origin_x:self.origin_x,origin_y:self.origin_y,origin_z:self.origin_z,restrict:self.restrict,range_x:self.range_x,range_y:self.range_y,range_z:self.range_z}
-        }else if self.motile==0 && EVISCERATE && EVISCERATE_ZONES.contains(&self.zone){
+        }else if self.motile==0 && EVISCERATE_ZONES.contains(&self.zone){
             // println!("Evisceration pending...");
             // self.motile == 1; //It should be presumably electrocuted and hung on a conveyer belt
             self.x = ((self.origin_x as f64) + (self.range_x as f64))/2.0; // square in middle
