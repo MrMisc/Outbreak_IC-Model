@@ -9,6 +9,7 @@ while(length(line<-readLines(f,n=1))>0){
   record<-c(record,line)  
 }
 
+somethingSomethingplotly<-FALSE
 
 numbers<-record[1:length(record)-1]
 numbers_<-c()
@@ -20,7 +21,8 @@ print(getwd())
 library(ggplot2)
 library(pandoc)
 library(plotly)
-
+library(echarts4r)
+library(echarts4r.assets)
 library("ggplot2")
 library("plotly")
 library("breakDown")
@@ -150,7 +152,8 @@ data <- data.frame(x = x, y = y, z = altitude,interaction = factor(interaction),
 zone_unique2 <- unique(zone)
 print("ZONES being used...")
 print(zone_unique2)
-
+minimum<-min(data$time)
+maximum<-max(data$time)
 for (separate_zone in zone_unique2){
   # print(typeof(separate_zone))
   data_<-subset(data, zone == separate_zone)
@@ -158,32 +161,31 @@ for (separate_zone in zone_unique2){
   data_ <- data_ %>% 
       mutate(interaction = case_when(
         interaction == 1000 ~ "marker",
-          interaction == 0 ~ "Host 0",
-          interaction == 1 ~ "Host <-> Host",
-          interaction == -2 ~ "Host -> Egg",
-          interaction == -3 ~ "Host -> Faeces",
-          interaction == 4 ~ "Egg <-> Egg",
-          interaction == -6 ~ "Egg -> Faeces",
-          interaction == 9 ~ "Faeces <-> Faeces",
-          interaction == 2 ~ "Egg -> Host",
-          interaction == 3 ~ "Faeces -> Host",
-          interaction == 6 ~ "Faeces -> Egg",
+          interaction == 0 ~ "Host 0[*]",
+          interaction == 1 ~ "Host <-> Host[*]",
+          interaction == -2 ~ "Host -> Egg[*]",
+          interaction == -3 ~ "Host -> Faeces[*]",
+          interaction == 4 ~ "Egg <-> Egg[*]",
+          interaction == -6 ~ "Egg -> Faeces[*]",
+          interaction == 9 ~ "Faeces <-> Faeces[*]",
+          interaction == 2 ~ "Egg -> Host[*]",
+          interaction == 3 ~ "Faeces -> Host[*]",
+          interaction == 6 ~ "Faeces -> Egg[*]",
           interaction == 10~ "Feed infection",
           interaction == 11~ "Eviscerator -> Host",
           interaction == 12~ "Host -> Eviscerator",
           interaction == 13~ "Eviscerator Mishap/Explosion",
+          interaction == 100 ~ "Host 0",
+          interaction == 101 ~ "Host <-> Host",
+          interaction == -102 ~ "Host -> Egg",
+          interaction == -103 ~ "Host -> Faeces",
+          interaction == 104 ~ "Egg <-> Egg",
+          interaction == -106 ~ "Egg -> Faeces",
+          interaction == 109 ~ "Faeces <-> Faeces",
+          interaction == 102 ~ "Egg -> Host",
+          interaction == 103 ~ "Faeces -> Host",
+          interaction == 106 ~ "Faeces -> Egg",          
           TRUE ~ as.character(interaction)
-      ),
-      shapes = case_when(
-        interaction == "Host 0" ~ "square",  
-        interaction == "Host <-> Host" ~ "circle",
-        interaction == "Host -> Egg" ~ "star",
-        interaction == "Host -> Faeces" ~ "hexagram",
-        interaction == "Egg <-> Egg" ~ "x",
-        interaction == "Egg -> Faeces" ~ "star-x",
-        interaction == "Faeces <-> Faeces" ~ "asterisk",
-        interaction == "Feed infection" ~ "asterisk",
-        TRUE ~ as.character(interaction)
       ))
 
   custom_marker_symbols <- list(
@@ -202,85 +204,104 @@ for (separate_zone in zone_unique2){
   print(max(data_$time))
   print("Minimum data time is")
   print(min(data_$time))
-  fig <- plot_ly(data_, x = ~x, y = ~y, z = ~z, mode = "markers", type = "scatter3d", symbol = ~interaction, text = ~paste(
-                           '<br>Time:', time, 'hours ','<br> Infection Event Type:',interaction),
-                marker = list(
-                  color = ~time,
-                  cmin = min(data_$time),
-                  cmax = max(data_$time),                  
-                  size = transfer_distance*scaling_factor,
-                  opacity = 0.9,
-                  colorscale=list(c(0, 1), c("#C34A36", "#2F4858")),                 
-                  colorbar = list(
-                   title = 'Time',
-                   x = 0,
-                   y = 0.5,
-                   thickness = 5,
-                   dtick = 12,
-                   tick0 = 0
-                 ),
-                  showscale = TRUE
-                ))
+  if (somethingSomethingplotly){
+    fig <- plot_ly(data_, x = ~x, y = ~y, z = ~z, mode = "markers", type = "scatter3d", symbol = ~interaction, text = ~paste(
+                            '<br>Time:', time, 'hours ','<br> Infection Event Type:',interaction),
+                  marker = list(
+                    color = ~time,
+                    cmin = min(data_$time),
+                    cmax = max(data_$time),                  
+                    size = transfer_distance*scaling_factor,
+                    opacity = 0.9,
+                    colorscale=list(c(0, 1), c("#C34A36", "#2F4858")),                 
+                    colorbar = list(
+                    title = 'Time',
+                    x = 0,
+                    y = 0.5,
+                    thickness = 5,
+                    dtick = 12,
+                    tick0 = 0
+                  ),
+                    showscale = TRUE
+                  ))
+    print("Using x coord as follows")
+    print("Max x")
+    print(x_large[count])
+    print("Out from ")
+    print(x_large)
+    print("Step x")
+    print(step_x[count])
+    print("Out from")
+    print(step_x)
+    fig <- fig %>% layout(scene = list(xaxis = list(title = 'X-Axis',dtick = step_x[count],range = list(0,x_large[count])),
+                                    yaxis = list(title = 'Y-Axis',dtick = step_y[count],range = list(0,y_large[count])),
+                                    zaxis = list(title = 'Z-Axis',dtick = step_z[count],range = list(0,z_large[count])),
+                                    aspectmode = "manual",aspectratio = list(x = x_large[count]/f,y = y_large[count]/f,z = z_large[count]/f)))
+
+    fig<-fig%>%
+    animation_opts(mode = "next",
+                  easing = "elastic-in", redraw = FALSE
+    )
+
+    htmlwidgets::saveWidget(as_widget(fig), paste("animation",separate_zone,".html",sep = "_"), selfcontained = TRUE)
+    rm(fig)
+
+    fig <- plot_ly(data_, x = ~x, y = ~y, z = ~z, mode = "markers", type = "scatter3d", frame = ~time, symbol=~interaction,text = ~paste(
+                            '<br>Time:', time, 'hours ','<br> Infection Event Type:',interaction, '<br> Zone: ',zone),
+                  marker = list(
+                    color = "#15798C",
+                    size = transfer_distance*scaling_factor,
+                    opacity = 0.9,
+                    colorscale = 'Inferno'
+                  ))
+
+    # Apply the custom color scale to the plot
+    # fig$x$data[[1]]$marker$colorscale <- custom_color_scale
+    # fig <- fig %>% add_markers()
+    # fig <- fig %>% layout(scene = list(xaxis = list(title = 'X-Axis',dtick = step_x[separate_zone],range = list(0,x_large[separate_zone])),
+    #                                 yaxis = list(title = 'Y-Axis',dtick = step_y[separate_zone],range = list(0,y_large[separate_zone])),
+    #                                 zaxis = list(title = 'Z-Axis',dtick = step_z[separate_zone],range = list(0,z_large[separate_zone])),
+    #                                 aspectmode = "manual",aspectratio = list(x = x_large[separate_zone],y = y_large[separate_zone],z = z_large[separate_zone])))
+    fig <- fig %>% layout(scene = list(xaxis = list(title = 'X-Axis',dtick = step_x[count],range = list(0,x_large[count])),
+                                    yaxis = list(title = 'Y-Axis',dtick = step_y[count],range = list(0,y_large[count])),
+                                    zaxis = list(title = 'Z-Axis',dtick = step_z[count],range = list(0,z_large[count])),
+                                    aspectmode = "manual",aspectratio = list(x = x_large[count]/f,y = y_large[count]/f,z = z_large[count]/f)))  
+
+    fig<-fig%>%
+    animation_opts(frame = 300,transition = 150,mode = "next",
+                  easing = "elastic-in", redraw = TRUE
+    )
+
+    htmlwidgets::saveWidget(as_widget(fig), paste("animation",separate_zone,"time_series",".html",sep = "_"), selfcontained = TRUE)  
+
+
+  }
+
 
   # Apply the custom color scale to the plot
   # fig$x$data[[1]]$marker$colorscale <- custom_color_scale
   # fig <- fig %>% add_markers()
   #Factor
   f<-max(x_large[count],y_large[count],z_large[count])/200
-  print("Using x coord as follows")
-  print("Max x")
-  print(x_large[count])
-  print("Out from ")
-  print(x_large)
-  print("Step x")
-  print(step_x[count])
-  print("Out from")
-  print(step_x)
-  fig <- fig %>% layout(scene = list(xaxis = list(title = 'X-Axis',dtick = step_x[count],range = list(0,x_large[count])),
-                                  yaxis = list(title = 'Y-Axis',dtick = step_y[count],range = list(0,y_large[count])),
-                                  zaxis = list(title = 'Z-Axis',dtick = step_z[count],range = list(0,z_large[count])),
-                                  aspectmode = "manual",aspectratio = list(x = x_large[count]/f,y = y_large[count]/f,z = z_large[count]/f)))
+  f_<-0.3*f
 
-  fig<-fig%>%
-  animation_opts(mode = "next",
-                 easing = "elastic-in", redraw = FALSE
-  )
-
-  htmlwidgets::saveWidget(as_widget(fig), paste("animation",separate_zone,".html",sep = "_"), selfcontained = TRUE)
-
-
-
-
-  #Time series plot animation
-  rm(fig)
-
-  fig <- plot_ly(data_, x = ~x, y = ~y, z = ~z, mode = "markers", type = "scatter3d", frame = ~time, symbol=~interaction,text = ~paste(
-                           '<br>Time:', time, 'hours ','<br> Infection Event Type:',interaction, '<br> Zone: ',zone),
-                marker = list(
-                  color = "#15798C",
-                  size = transfer_distance*scaling_factor,
-                  opacity = 0.9,
-                  colorscale = 'Inferno'
-                ))
-
-  # Apply the custom color scale to the plot
-  # fig$x$data[[1]]$marker$colorscale <- custom_color_scale
-  # fig <- fig %>% add_markers()
-  # fig <- fig %>% layout(scene = list(xaxis = list(title = 'X-Axis',dtick = step_x[separate_zone],range = list(0,x_large[separate_zone])),
-  #                                 yaxis = list(title = 'Y-Axis',dtick = step_y[separate_zone],range = list(0,y_large[separate_zone])),
-  #                                 zaxis = list(title = 'Z-Axis',dtick = step_z[separate_zone],range = list(0,z_large[separate_zone])),
-  #                                 aspectmode = "manual",aspectratio = list(x = x_large[separate_zone],y = y_large[separate_zone],z = z_large[separate_zone])))
-  fig <- fig %>% layout(scene = list(xaxis = list(title = 'X-Axis',dtick = step_x[count],range = list(0,x_large[count])),
-                                  yaxis = list(title = 'Y-Axis',dtick = step_y[count],range = list(0,y_large[count])),
-                                  zaxis = list(title = 'Z-Axis',dtick = step_z[count],range = list(0,z_large[count])),
-                                  aspectmode = "manual",aspectratio = list(x = x_large[count]/f,y = y_large[count]/f,z = z_large[count]/f)))  
-
-  fig<-fig%>%
-  animation_opts(frame = 300,transition = 150,mode = "next",
-                 easing = "elastic-in", redraw = TRUE
-  )
-
-  htmlwidgets::saveWidget(as_widget(fig), paste("animation",separate_zone,"time_series",".html",sep = "_"), selfcontained = TRUE)  
+  df<-data_
+  df$label<-df$interaction
+  # df$Time<-df$time
+  my_scale <- function(x) scales::rescale(x, to = c(minimum, maximum))
+  print(paste("Minimum and maxima of data are as",min(df$time),"vs",max(df$time),"while for the entire dataset it is",min(data$time),"and",max(data$time)))
+  fig<-df |> group_by(interaction) |> e_charts(x) |> 
+    e_scatter_3d(y,z,time,label)|>
+    e_tooltip() |>
+    e_visual_map(time,type = "continuous",inRange = list(symbol = "diamond",symbolSize = c(45,8), colorLightness = c(0.6,0.35)),scale = my_scale,dimension = 3,height = 100) |>
+    e_x_axis_3d(min = 0,max = x_large[count],interval = step_x[count])|>
+    e_y_axis_3d(min = 0,max = y_large[count],interval = step_y[count])|>
+    e_z_axis_3d(min = 0,max = z_large[count],interval = step_z[count], name = "Z / Altitude")|>
+    e_grid_3d(boxWidth = x_large[count]/f_,boxHeight = z_large[count]/f_,boxDepth = y_large[count]/f_)|>
+    e_legend(show = TRUE) |>
+    e_title(paste("Infection Plot | Zone",separate_zone,sep = " "), "IC Model | by Irshad Ul Ala")|>
+    e_theme_custom("MyEChartsTheme2.json")
+  htmlwidgets::saveWidget(fig, paste("Eanimation",separate_zone,".html",sep = "_"), selfcontained = TRUE)
 
 
 
@@ -292,80 +313,38 @@ for (separate_zone in zone_unique2){
 print("First section generation complete!")
 
 
+if (somethingSomethingplotly){
+  fig <- plot_ly(data, x = ~x, y = ~y, z = ~z, mode = "markers", type = "scatter3d", frame = ~zone,text = ~paste(
+                            '<br>Time:', time, 'hours ','<br> Infection Event Type:',interaction),
+                marker = list(
+                  color = ~time,
+                  size = transfer_distance*scaling_factor,
+                  opacity = 0.9,
+                  colorscale = 'Inferno',
+                  colorbar = list(
+                    title = 'Time',
+                    x = 0,
+                    y = 0.5,
+                    thickness = 5,
+                    dtick = 12,
+                    tick0 = 0
+                  )
+                ))
 
-fig <- plot_ly(data, x = ~x, y = ~y, z = ~z, mode = "markers", type = "scatter3d", frame = ~zone,text = ~paste(
-                           '<br>Time:', time, 'hours ','<br> Infection Event Type:',interaction),
-               marker = list(
-                 color = ~time,
-                 size = transfer_distance*scaling_factor,
-                 opacity = 0.9,
-                 colorscale = 'Inferno',
-                 colorbar = list(
-                   title = 'Time',
-                   x = 0,
-                   y = 0.5,
-                   thickness = 5,
-                   dtick = 12,
-                   tick0 = 0
-                 )
-               ))
-
-# Apply the custom color scale to the plot
-# fig$x$data[[1]]$marker$colorscale <- custom_color_scale
-# fig <- fig %>% add_markers()
-fig <- fig %>% layout(scene = list(xaxis = list(title = 'X-Axis',dtick = max(step_x),range = list(0,max(x_large))),
-                                 yaxis = list(title = 'Y-Axis',dtick = max(step_y),range = list(0,max(y_large))),
-                                 zaxis = list(title = 'Z-Axis',dtick = max(step_z),range = list(0,max(z_large))),
-                                 aspectmode = 'manual',aspectratio = list(x = x_large,y = y_large,z = z_large)))
-
-
-htmlwidgets::saveWidget(as_widget(fig), "animation__byzones.html", selfcontained = TRUE)
+  # Apply the custom color scale to the plot
+  # fig$x$data[[1]]$marker$colorscale <- custom_color_scale
+  # fig <- fig %>% add_markers()
+  fig <- fig %>% layout(scene = list(xaxis = list(title = 'X-Axis',dtick = max(step_x),range = list(0,max(x_large))),
+                                  yaxis = list(title = 'Y-Axis',dtick = max(step_y),range = list(0,max(y_large))),
+                                  zaxis = list(title = 'Z-Axis',dtick = max(step_z),range = list(0,max(z_large))),
+                                  aspectmode = 'manual',aspectratio = list(x = x_large,y = y_large,z = z_large)))
 
 
+  htmlwidgets::saveWidget(as_widget(fig), "animation__byzones.html", selfcontained = TRUE)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-#HEATMAP
-
-# summary_data <- data %>%
-#   group_by(x, y, zone, time) %>%
-#   summarise(count = n())
-
-
-
-# # Create the ggplot2 plot with geom_tile and fill based on count
-# heatmap_plot <- ggplot() +
-#   geom_tile(data = summary_data, aes(x = x, y = y, fill = count, frame = zone), width = 1, height = 1) +
-#   scale_fill_gradient(low = "beige", high = "red") +  # You can choose other color scales
-#   labs(title = "Heatmap of Event Counts")+
-#   coord_cartesian(ylim = c(min(data$y), max(data$y)), xlim = c(min(data$x), max(data$x)))
-
-# # Convert ggplot to plotly
-# heatmap_interactive <- ggplotly(heatmap_plot, dynamicTicks = TRUE)
-
-# # Save as HTML using pandoc
-# htmlwidgets::saveWidget(heatmap_interactive, "heatmap_output.html", selfcontained = TRUE)
-# print("Heatmap generated successfully!")
-
-
-
-
-
-# print("Data interaction column is")
-# print(data$interaction)
-# print("When summarised we get the following")
+}
 
 
 
@@ -373,27 +352,39 @@ htmlwidgets::saveWidget(as_widget(fig), "animation__byzones.html", selfcontained
 #   group_by(interaction, time) %>%
 #   summarise(count = n()) %>%
 thematic::thematic_on(bg = "#fff6eb", fg = "#005B4B", accent = "#005B4B", font = "Yu Gothic")
-data <- data %>% 
+print(unique(data$interaction))
+data <- data%>% 
     mutate(interaction = case_when(
-        interaction == 1000 ~ "marker",
-          interaction == 0 ~ "Host 0",
-          interaction == 1 ~ "Host <-> Host",
-          interaction == -2 ~ "Host -> Egg",
-          interaction == -3 ~ "Host -> Faeces",
-          interaction == 4 ~ "Egg <-> Egg",
-          interaction == -6 ~ "Egg -> Faeces",
-          interaction == 9 ~ "Faeces <-> Faeces",
-          interaction == 2 ~ "Egg -> Host",
-          interaction == 3 ~ "Faeces -> Host",
-          interaction == 6 ~ "Faeces -> Egg",
-          interaction == 10~ "Feed infection",
-          interaction == 11~ "Eviscerator -> Host",
-          interaction == 12~ "Host -> Eviscerator",
-          interaction == 13~ "Eviscerator Mishap/Explosion",
+      interaction == 1000 ~ "marker",
+        interaction == 0 ~ "Host 0[*]",
+        interaction == 1 ~ "Host <-> Host[*]",
+        interaction == -2 ~ "Host -> Egg[*]",
+        interaction == -3 ~ "Host -> Faeces[*]",
+        interaction == 4 ~ "Egg <-> Egg[*]",
+        interaction == -6 ~ "Egg -> Faeces[*]",
+        interaction == 9 ~ "Faeces <-> Faeces[*]",
+        interaction == 2 ~ "Egg -> Host[*]",
+        interaction == 3 ~ "Faeces -> Host[*]",
+        interaction == 6 ~ "Faeces -> Egg[*]",
+        interaction == 10~ "Feed infection",
+        interaction == 11~ "Eviscerator -> Host",
+        interaction == 12~ "Host -> Eviscerator",
+        interaction == 13~ "Eviscerator Mishap/Explosion",
+        interaction == 100 ~ "Host 0",
+        interaction == 101 ~ "Host <-> Host",
+        interaction == -102 ~ "Host -> Egg",
+        interaction == -103 ~ "Host -> Faeces",
+        interaction == 104 ~ "Egg <-> Egg",
+        interaction == -106 ~ "Egg -> Faeces",
+        interaction == 109 ~ "Faeces <-> Faeces",
+        interaction == 102 ~ "Egg -> Host",
+        interaction == 103 ~ "Faeces -> Host",
+        interaction == 106 ~ "Faeces -> Egg",          
         TRUE ~ as.character(interaction)
     ))
 
-
+print("Names in data are")
+print(unique(data$interaction))
 
 fig <- ggplot(data, aes(x = time, fill = as.factor(interaction))) +
   geom_bar(position = "dodge") + facet_wrap(.~zone)+
@@ -403,11 +394,15 @@ fig <- ggplotly(fig, dynamicTicks = TRUE)
 
 htmlwidgets::saveWidget(fig, "Histogram.html", selfcontained = TRUE)
 
-  S <- data %>%
-    group_by(interaction,zone,time) %>%
-    summarise(count = n()) %>%
-    ungroup()
+S <- data %>%
+  group_by(interaction,zone,time) %>%
+  summarise(count = n()) %>%
+  ungroup()
 
+S_ <- data %>%
+  group_by(interaction,time) %>%
+  summarise(count = n()) %>%
+  ungroup()
 
 fig <- ggplot(S, aes(y = count,x = time, color = as.factor(interaction))) +
   geom_line() + facet_wrap(.~zone) +
@@ -416,140 +411,76 @@ fig <- ggplot(S, aes(y = count,x = time, color = as.factor(interaction))) +
 fig <- ggplotly(fig, dynamicTicks = TRUE)
 
 htmlwidgets::saveWidget(fig, "Line.html", selfcontained = TRUE)
+rm(fig)
+# write.csv(S_,"infections_sample.csv", row.names = FALSE)
+# write.csv(S,"extra.csv", row.names = FALSE)
+# write.csv(data,"full.csv", row.names = FALSE)
+data <- S_ %>%
+  mutate(dates = time) %>%
+  select( -time) %>%
+  rename(groups = interaction, values = count)
+
+# Convert 'dates' column to numeric (if it's not already numeric)
+data$dates <- as.numeric(data$dates)
+
+# Create a template dataframe with all unique combinations of groups and dates
+all_combinations <- expand.grid(
+  groups = unique(data$groups),
+  dates = unique(data$dates)
+)
+
+# Merge the template with the existing data
+filled_data <- merge(all_combinations, data, by = c("groups", "dates"), all = TRUE)
+
+# Replace missing values with 0
+filled_data[is.na(filled_data$values), "values"] <- 0
+
+# e_theme(
+#   e,
+#   name = c("auritus", "azul", "bee-inspired", "blue", "caravan", "carp", "chalk", "cool",
+#            "dark-blue", "dark-bold", "dark-digerati", "dark-fresh-cut", "dark-mushroom", "dark",
+#            "eduardo", "essos", "forest", "fresh-cut", "fruit", "gray", "green", "halloween",
+#            "helianthus", "infographic", "inspired", "jazz", "london", "macarons", "macarons2",
+#            "mint", "purple-passion", "red-velvet", "red", "roma", "royal", "sakura", "shine",
+#            "tech-blue", "vintage", "walden", "wef", "weforum", "westeros", "wonderland")
+# )
 
 
 
+# Sort the combined data by 'groups' and 'dates'
+filled_data <- filled_data[order(filled_data$groups, filled_data$dates), ]
+fig<-filled_data|>group_by(groups)|>
+  e_charts(dates) |>
+  e_area(values,
+         emphasis = list(
+           focus = "self"
+         )) |> 
+  e_y_axis(min = 0)|>
+  e_tooltip()  |>
+  e_theme("westeros")|>
+  e_datazoom(
+    type = "slider",
+    toolbox = TRUE,
+    bottom = 10
+  )|>
+  e_legend(right = 5,top = 80,selector = "inverse",show=TRUE,icon = 'circle',emphasis = list(selectorLabel = list(offset = list(10,0))), align = 'right',type = "scroll",width = 10,orient = "vertical")|>
+  e_legend_unselect("marker")|>
+  e_legend_unselect("Host 0[*]")|>
+  e_title(paste("Infection Occurrences over Time by Type"), "IC Model | by Irshad Ul Ala")
+htmlwidgets::saveWidget(fig, "EAreaHistogram.html", selfcontained = TRUE)
 
-# # Create the ggplot2 plot with geom_tile and the custom color scale
-# heatmap_plot <- ggplot() +
-#   geom_tile(data = summary_data, aes(x = x, y = y, fill = count, frame = time), width = 1, height = 1) +
-#   scale_fill_gradient(low = "beige", high = "red") +  # Use the custom color scale
-#   labs(title = "Heatmap of Event Counts") +
-#   coord_cartesian(ylim = c(min(data$y), max(data$y)), xlim = c(min(data$x), max(data$x)))
+rm(fig)
+fig<-S_ |> group_by(interaction) |> e_charts(time) |>
+  e_datazoom(
+    type = "slider",
+    toolbox = FALSE,
+    bottom = -5
+  )|>
+  e_tooltip()|>
+  e_x_axis(time, axisPointer = list(show = TRUE))|>
+  e_area(count, stack = "grp")
 
-# # Convert ggplot to plotly
-# heatmap_interactive <- ggplotly(heatmap_plot, dynamicTicks = TRUE)
-
-# htmlwidgets::saveWidget(heatmap_interactive, "heatmap_output_time.html", selfcontained = TRUE)
-# print("Heatmap timeseries generated successfully!")
-
-
-
-# zone_unique <- unique(zone)
-# zone_plots <- list()
-
-
-# for (z in zone_unique) {
-#   data_zone <- data.frame(x = x[zone == z], y = y[zone == z], time = time[zone == z], zone = zone[zone == z])
-  
-#   # Create the ggplot2 plot with geom_tile and custom color scale
-#   summary_data <- data_zone %>%
-#     group_by(x, y, zone, time) %>%
-#     summarise(count = n())
-  
-#   custom_color_scale <- scale_fill_gradient(low = "beige", high = "red")
-  
-#   heatmap_plot <- ggplot() +
-#     geom_tile(data = summary_data, aes(x = x, y = y, fill = count, frame = time), width = 1, height = 1) +
-#     custom_color_scale +
-#     labs(title = paste("Zone", z, ": Heatmap of Event Counts")) +
-#     coord_cartesian(ylim = c(min(data$y), max(data$y)), xlim = c(min(data$x), max(data$x)))
-  
-#   # Convert ggplot to plotly
-#   heatmap_interactive <- ggplotly(heatmap_plot, dynamicTicks = TRUE)
-  
-#   # Save the plot as an HTML file with a unique name based on the zone
-#   html_filename <- paste("heatmap_timeseries_zone_", z, ".html", sep = "")
-#   htmlwidgets::saveWidget(heatmap_interactive, html_filename, selfcontained = TRUE)
-# }
-
-
-# print("Heatmap timeseries generated successfully!")
-
-
-#Another try at 2d hist using geom_tile
-
-
-# # Create a data frame for the entire data
-# data_all <- data.frame(x = x, y = y, zone = zone)
-
-# # Create the animated heatmap
-# heatmap_plot <- ggplot(data_all, aes(x, y, frame = factor(zone))) +
-#   geom_tile(aes(fill = ..density..), bins = 5) +
-#   scale_fill_gradient(low = "#34FCEC", high = "#B102E9") +
-#   labs(title = "2D Histogram of Occurrences")
-
-# # Convert ggplot to ggplotly
-# heatmap_interactive <- ggplotly(heatmap_plot)
-
-# # Save as HTML using pandoc
-# htmlwidgets::saveWidget(heatmap_interactive, "animated_2dhistogram.html", selfcontained = TRUE)
-
-
-
-# ##Heatmap (2d histogram)
-# custom_colorscale <- c("#34FCEC", "#00D3FF", "#0099FF", "#B102E9")
-# hist2d <- plot_ly(data = data, x = ~x, y = ~y, type = "histogram2d",xbins = list(start = min(data$x), end = max(data$x), size = 10, colors = custom_colorscale),
-#                   ybins = list(start = min(data$y), end = max(data$y), size = 10),
-#                   marker = list(colorscale = custom_colorscale)) %>%
-#   layout(title = "2D Histogram of Occurrences",
-#          xaxis = list(title = "X"),
-#          yaxis = list(title = "Y"),
-#          plot_bgcolor = '#FFF8EE',
-#          xaxis = list(
-#            zerolinecolor = '#ffff',
-#            zerolinewidth = 0.5,
-#            gridcolor = '#F4F2F0'),
-#          yaxis = list(
-#            zerolinecolor = '#ffff',
-#            zerolinewidth = 0.5,
-#            gridcolor = '#F4F2F0'))
-# # Save interactive plot as HTML using pandoc
-# htmlwidgets::saveWidget(hist2d, "Heatmap_2dHistogram.html", selfcontained = TRUE)
-
-
-
-
-
-
-
-
-
-#Hexbin heatmap plot?
-
-# hexbin_plot <- plot_ly(x = x, y = y, type = "scatter", mode = "markers",
-#                        marker = list(symbol = "hexagon", size = 10,
-#                                      opacity = 0.7, line = list(width = 0)),
-#                        colors = "rgba(255,255,255,0.0)", fill =~zone) %>%
-#   layout(title = "Hexbin Plot Example",
-#          xaxis = list(title = "X"),
-#          yaxis = list(title = "Y"))
-
-# # Save interactive plot as HTML using pandoc
-# htmlwidgets::saveWidget(hexbin_plot, "hexbin_plot.html", selfcontained = TRUE)
-
-
-
-
-# data <- data.frame(x = x, y = y, time = time)
-
-# surface_plot <- plot_ly(data, x = ~x, y = ~y, z = ~time,
-#                         type = "surface", colorscale = "Viridis",
-#                         colorbar = list(title = "Time"),
-#                         showscale = TRUE) %>%
-#   layout(title = "Surface Plot Example",
-#          scene = list(
-#            xaxis = list(title = "X"),
-#            yaxis = list(title = "Y"),
-#            zaxis = list(title = "Time"))
-#   )
-
-# # Save interactive plot as HTML using pandoc
-# htmlwidgets::saveWidget(surface_plot, "surface_plot.html", selfcontained = TRUE)
-
-
-
-
+htmlwidgets::saveWidget(fig, "EArea.html", selfcontained = TRUE)
 
 
 #library(pandoc)
@@ -652,101 +583,3 @@ fig_dots <- data %>%
 
 # Save the animation
 htmlwidgets::saveWidget(fig_dots, "scatter.html", selfcontained = TRUE)
-
-
-
-# #Collection
-
-# fig_dots<-data%>%plot_ly(type="scatter",
-#           mode = "markers+lines",line = list(width=0.35))%>%
-#   add_trace(x = time,
-#           y = ~HitPct3,
-#           color ="Host",
-#           colors=c("#2A6074","#00C9B1"),
-#           size = ~TotalSamples3,
-#           customdata = ~paste(HitSamples3, "out of ", TotalSamples3," hosts"),
-#           hovertemplate="%{y} % of motile hosts <br> are infected  <br> ie %{customdata}")
-
-
-# fig_dots<-fig_dots %>%
-#   add_trace(
-#     x = ~time,
-#     y = ~HitPct4,
-#     color = "Deposits",
-#     colors = c("#FFF184", "#FFDD80"),  # Reversed color order
-#     size = ~TotalSamples4,
-#     customdata = ~paste(HitSamples4, "out of ", TotalSamples4," deposits"),
-#     hovertemplate = "%{y} % of sessile deposits <br> are infected  <br> ie %{customdata}",
-#     line = list(width = 0.35)
-#   ) %>%
-#   layout(title = "Infection Trend within collection",
-#          plot_bgcolor = '#FFF8EE',
-#          xaxis = list(
-#           title = "Time (Hours)",
-#            zerolinecolor = '#ffff',
-#            zerolinewidth = 0.5,
-#            gridcolor = '#F4F2F0'),
-#          yaxis = list(
-#           title = "Percentage of Infected",
-#            zerolinecolor = '#ffff',
-#            zerolinewidth = 0.5,
-#            gridcolor = '#F4F2F0'))
-
-
-# htmlwidgets::saveWidget(fig_dots, "scatter_plot_2.html", selfcontained = TRUE)
-
-
-
-
-# #Overall
-
-# # print(data$HitSamples1)
-# # print(data$HitSamples3)
-# # print(data$HitSamples1+data$HitSamples3)
-
-# data$totalhits_motile<-data$HitSamples1+data$HitSamples3
-# data$totalhits_sessile<-data$HitSamples2+data$HitSamples4
-
-# data$Total_motile<-data$TotalSamples1+data$TotalSamples3
-# data$Total_sessile<-data$TotalSamples2+data$TotalSamples4
-
-# data$totalperc_motile<-data$totalhits_motile/data$Total_motile*100
-# data$totalperc_sessile<-data$totalhits_sessile/data$Total_sessile*100
-
-# fig_dots<-data%>%plot_ly(type="scatter",
-#           mode = "markers+lines",line = list(width=0.35))%>%
-#   add_trace(x = time,
-#           y = ~totalperc_motile,
-#           color ="Host",
-#           colors=c("#2A6074","#00C9B1"),
-#           size = ~Total_motile,
-#           customdata = ~paste(totalhits_motile, "out of ", Total_motile," hosts"),
-#           hovertemplate="%{y} % of motile hosts <br> are infected  <br> ie %{customdata}")
-
-
-# fig_dots<-fig_dots %>%
-#   add_trace(
-#     x = ~time,
-#     y = ~totalperc_sessile,
-#     color = "Deposits",
-#     colors = c("#FFF184", "#FFDD80"),  # Reversed color order
-#     size = ~Total_sessile,
-#     customdata = ~paste(totalhits_sessile, "out of ", Total_sessile," deposits"),
-#     hovertemplate = "%{y} % of sessile deposits <br> are infected  <br> ie %{customdata}",
-#     line = list(width = 0.35)
-#   ) %>%
-#   layout(title = "Infection Trend across population",
-#          plot_bgcolor = '#FFF8EE',
-#          xaxis = list(
-#           title = "Time (Hours)",
-#            zerolinecolor = '#ffff',
-#            zerolinewidth = 0.5,
-#            gridcolor = '#F4F2F0'),
-#          yaxis = list(
-#           title = "Percentage of Infected",
-#            zerolinecolor = '#ffff',
-#            zerolinewidth = 0.5,
-#            gridcolor = '#F4F2F0'))
-
-
-# htmlwidgets::saveWidget(fig_dots, "scatter_plot_final.html", selfcontained = TRUE)
